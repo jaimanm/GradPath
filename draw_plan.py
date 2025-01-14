@@ -36,7 +36,7 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
     
     # Draw nodes
     nx.draw_networkx_nodes(G, pos,
-                          node_color='lightblue',
+                          node_color=['lightgray' if course.completed else 'lightblue' for course in G.nodes()],
                           node_size=2800,
                           node_shape='o')
     

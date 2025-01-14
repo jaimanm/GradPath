@@ -5,14 +5,14 @@ from draw_plan import create_prerequisite_diagram
 from object_classes import Course, GraduationPlan
 
 # Create courses (semester 1)
-cmsc131 = Course("CMSC131", 1)
-math141 = Course("MATH141", 1)
-math140 = Course("MATH140", 1)
-cmsc132 = Course("CMSC132", 1)
+cmsc131 = Course("CMSC131", 1, completed=True)
+math141 = Course("MATH141", 1, completed=True)
+math140 = Course("MATH140", 1, completed=True)
+cmsc132 = Course("CMSC132", 1, completed=True)
 
 # Create courses (semester 2)
-cmsc250 = Course("CMSC250", 2)
-stat400 = Course("STAT400", 2)
+cmsc250 = Course("CMSC250", 2, completed=True)
+stat400 = Course("STAT400", 2, completed=True)
 
 # Create courses (semester 3)
 math461 = Course("MATH461", 3)

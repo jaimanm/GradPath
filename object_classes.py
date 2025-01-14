@@ -1,18 +1,29 @@
 from typing import List, Dict
 
 class Course:
-  def __init__(self, name: str, semester: int, prerequisites: List['Course'] = None):
+  def __init__(self, name: str, semester: int = None, prerequisites: List['Course'] = None, completed: bool = False):
     """
     Initialize a Course with a name, semester, and optional prerequisites.
     
     Parameters:
     name (str): The name of the course.
-    semester (int): The semester in which the course is offered.
+    semester (int): The semester in which the course is offered. set to None if value not given
     prerequisites (List[Course], optional): A list of prerequisite courses. Defaults to an empty list.
+    completed (bool, optional): A boolean indicating whether the course has been completed. Defaults to False.
     """
     self.name: str = name
     self.semester: int = semester
-    self.prerequisites: List['Course'] = prerequisites if prerequisites is not None else []
+    self.prerequisites: List['Course'] = prerequisites or []
+    self.completed = completed
+
+  def set_completed(self, completed: bool) -> None:
+    """
+    Set the completed status of the course.
+    
+    Parameters:
+    completed (bool): A boolean indicating whether the course has been completed.
+    """
+    self.completed = completed
 
   def add_prerequisite(self, course: 'Course') -> None:
     """
@@ -45,6 +56,15 @@ class GraduationPlan:
     """
     self.semesters: Dict[int, List[Course]] = {}
     self.courses: List[Course] = courses if courses is not None else []
+
+  def add_course(self, course: Course) -> None:
+    """
+    Add a course to the GraduationPlan.
+    
+    Parameters:
+    course (Course): The course to be added.
+    """
+    self.courses.append(course)
 
   def __repr__(self) -> str:
     """
