@@ -8,24 +8,24 @@ from object_classes import Course, GraduationPlan
 cmsc131 = Course("CMSC131", 1, completed=True)
 math141 = Course("MATH141", 1, completed=True)
 math140 = Course("MATH140", 1, completed=True)
-cmsc132 = Course("CMSC132", 1, completed=True)
+cmsc132 = Course("CMSC132", 1, completed=True, prerequisites=[cmsc131])
 
 # Create courses (semester 2)
-cmsc250 = Course("CMSC250", 2, completed=True)
-stat400 = Course("STAT400", 2, completed=True)
+cmsc250 = Course("CMSC250", 2, completed=True, prerequisites=[cmsc131, math141])
+stat400 = Course("STAT400", 2, completed=True, prerequisites=[math141])
 
 # Create courses (semester 3)
-math461 = Course("MATH461", 3)
-cmsc216 = Course("CMSC216", 3)
+math461 = Course("MATH461", 3, prerequisites=[cmsc250])
+cmsc216 = Course("CMSC216", 3, prerequisites=[cmsc132])
 
 # Create courses (semester 4)
-cmsc330 = Course("CMSC330", 4)
-cmsc351 = Course("CMSC351", 4)
-cmsc320 = Course("CMSC320", 4)
+cmsc330 = Course("CMSC330", 4, prerequisites=[cmsc216, math461])
+cmsc351 = Course("CMSC351", 4, prerequisites=[cmsc216])
+cmsc320 = Course("CMSC320", 4, prerequisites=[math140, stat400])
 
 # Create courses (semester 5)
-cmsc421 = Course("CMSC421", 5)
-cmsc422 = Course("CMSC422", 5)
+cmsc421 = Course("CMSC421", 5, prerequisites=[cmsc330])
+cmsc422 = Course("CMSC422", 5, prerequisites=[cmsc330, cmsc351])
 cmsc4xx_1 = Course("CMSC4XX SPECIALIZATION", 5)
 
 # Create courses (semester 6)
@@ -38,24 +38,6 @@ upper_level1 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level2 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level3 = Course("UPPER LEVEL VERIFICATION", 7)
 
-# Add prerequisites
-cmsc132.add_prerequisite(cmsc131)
-cmsc250.add_prerequisite(cmsc131)
-cmsc250.add_prerequisite(math141)
-stat400.add_prerequisite(math141)
-
-cmsc216.add_prerequisite(cmsc132)
-math461.add_prerequisite(cmsc250)
-
-cmsc330.add_prerequisite(cmsc216)
-cmsc330.add_prerequisite(math461)
-cmsc351.add_prerequisite(cmsc216)
-cmsc320.add_prerequisite(math140)
-cmsc320.add_prerequisite(stat400)
-
-cmsc421.add_prerequisite(cmsc330)
-cmsc422.add_prerequisite(cmsc330)
-cmsc422.add_prerequisite(cmsc351)
 
 # Create graduation plan
 plan = GraduationPlan()
