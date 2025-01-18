@@ -1,7 +1,8 @@
 from typing import List, Dict
+import json
 
 class Course:
-  def __init__(self, name: str, semester: int = None, prerequisites: List['Course'] = None, completed: bool = False):
+  def __init__(self, course_id: str, semester: int = None, prerequisites: List['Course'] = None, completed: bool = False):
     """
     Initialize a Course with a name, semester, and optional prerequisites.
     
@@ -11,10 +12,19 @@ class Course:
     prerequisites (List[Course], optional): A list of prerequisite courses. Defaults to an empty list.
     completed (bool, optional): A boolean indicating whether the course has been completed. Defaults to False.
     """
-    self.name: str = name
+    self.course_id: str = course_id
     self.semester: int = semester
     self.prerequisites: List['Course'] = prerequisites or []
     self.completed = completed
+    course_info = Course.get_course(course_id)
+    if course_info:
+      # populate the course object with whatever attributes the json object has
+      for key, value in course_info.items():
+        if key != 'course_id' and key != 'semester':
+          setattr(self, key, value)
+    else:
+      self.name = course_id
+
 
   def set_completed(self, completed: bool) -> None:
     """
@@ -33,6 +43,12 @@ class Course:
     course (Course): The course to be added as a prerequisite.
     """
     self.prerequisites.append(course)
+  
+  @staticmethod
+  def get_course(course_id):
+    course_catalog = json.load(open("backend/data/courses.json")) 
+    matching_courses = [course for course in course_catalog if course['course_id'] == course_id]
+    return matching_courses[0] if matching_courses else None
 
   def __repr__(self) -> str:
     """
@@ -43,7 +59,7 @@ class Course:
     """
     prerequisites_str = ""
     if self.prerequisites:
-      prerequisites_str = ", Prerequisites: [" + ", ".join([course.name for course in self.prerequisites]) + "]"
+      prerequisites_str = ", Prerequisites: [" + ", ".join([course.course_id for course in self.prerequisites]) + "]"
     return f"\nCourse({self.name}, Semester {self.semester}{prerequisites_str})"
 
 class GraduationPlan:
