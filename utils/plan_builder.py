@@ -32,6 +32,9 @@ def assign_semesters(courses):
         
         queue.extend(current_semester_courses)
         semester += 1
+
+    # Add 1 to each semester number, to leave space for transfer credits
+    semester_assignments = {course_id: semester + 1 for course_id, semester in semester_assignments.items()}
     
     # Assign the calculated semester numbers to the course objects
     for course in courses:

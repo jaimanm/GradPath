@@ -62,12 +62,32 @@ for course in courses:
 
 
 # GRAD PLAN BUILDING
-
-# assigning semester values
-from collections import defaultdict
-
-# Call the function to assign semesters
 assign_semesters(courses)
+
+# FACTOR IN TRANSFER CREDITS
+aps_completed = [
+  "Math-Calculus BC",
+  "Computer Science A",
+]
+exemption_exams = [
+  "CMSC132"
+]
+ap_credits = json.load(open("data/ap-credits.json"))
+for ap in aps_completed:
+  # find the corresponding course
+  completed_courses = ap_credits[ap]
+  for course in completed_courses:
+    c = next((c for c in courses if c.course_id == course), None)
+
+    if c:
+      c.completed = True
+      c.semester = 1
+
+for exam in exemption_exams:
+  course = next((c for c in courses if c.course_id == exam), None)
+  if course:
+    course.completed = True
+    course.semester = 1
 
 from utils.object_classes import GraduationPlan
 plan = GraduationPlan(courses)
