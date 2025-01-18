@@ -1,8 +1,8 @@
 import textwrap
 import networkx as nx
 import matplotlib.pyplot as plt
-from draw_plan import create_prerequisite_diagram
-from object_classes import Course, GraduationPlan
+from .draw_plan import create_prerequisite_diagram
+from .object_classes import Course, GraduationPlan
 
 # Create courses (semester 1)
 cmsc131 = Course("CMSC131", 1, completed=True)
@@ -37,8 +37,6 @@ ml_elective2 = Course("ML ELECTIVE", 6)
 upper_level1 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level2 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level3 = Course("UPPER LEVEL VERIFICATION", 7)
-
-print(cmsc131)
 
 
 # Create graduation plan

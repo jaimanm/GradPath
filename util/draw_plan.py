@@ -1,6 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
-from object_classes import GraduationPlan
+from .object_classes import GraduationPlan
 import textwrap
 
 def create_prerequisite_diagram(plan: GraduationPlan) -> None:

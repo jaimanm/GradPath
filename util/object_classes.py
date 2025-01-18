@@ -46,7 +46,7 @@ class Course:
   
   @staticmethod
   def get_course(course_id):
-    course_catalog = json.load(open("courses.json")) 
+    course_catalog = json.load(open("data/courses.json")) 
     matching_courses = [course for course in course_catalog if course['course_id'] == course_id]
     return matching_courses[0] if matching_courses else None
 
