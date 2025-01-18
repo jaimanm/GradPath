@@ -50,5 +50,5 @@ all_courses = [cmsc131, math141, math140, cmsc132, cmsc250, stat400,
 
 plan.courses = all_courses
 
-# Draw the diagram
-create_prerequisite_diagram(plan)
+# # Draw the diagram
+# create_prerequisite_diagram(plan)
