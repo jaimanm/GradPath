@@ -1,0 +1,22 @@
+/* styles/course.css */
+.react-flow__node {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.react-flow__node:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+
+.react-flow__edge {
+  stroke-width: 2;
+}
+
+.react-flow__edge-path {
+  stroke: #999;
+}
+
+.react-flow__controls {
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
