@@ -1,4 +1,4 @@
-from object_classes import *
+from utils.object_classes import *
 
 def test_course_initialization():
   course = Course("CMSC131", 1)

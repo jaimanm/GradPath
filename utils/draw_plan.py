@@ -1,6 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
-from object_classes import GraduationPlan
+from utils.object_classes import GraduationPlan
 import textwrap
 import numpy as np
 
