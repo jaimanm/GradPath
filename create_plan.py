@@ -38,6 +38,8 @@ upper_level1 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level2 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level3 = Course("UPPER LEVEL VERIFICATION", 7)
 
+print(cmsc131)
+
 
 # Create graduation plan
 plan = GraduationPlan()

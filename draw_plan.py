@@ -51,7 +51,7 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
     
     # Draw labels for the nodes
     nx.draw_networkx_labels(G, pos,
-                       labels={course: textwrap.fill(course.name, width=15) for course in G.nodes()},
+                       labels={course: textwrap.fill(course.course_id, width=15) for course in G.nodes()},
                        font_size=10,
                        font_color='black',
                        font_weight='bold',
