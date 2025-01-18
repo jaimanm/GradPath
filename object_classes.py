@@ -16,6 +16,7 @@ class Course:
     self.semester: int = semester
     self.prerequisites: List['Course'] = prerequisites or []
     self.completed = completed
+    self.vertical_position = 0
     course_info = Course.get_course(course_id)
     if course_info:
       # populate the course object with whatever attributes the json object has
@@ -46,7 +47,7 @@ class Course:
   
   @staticmethod
   def get_course(course_id):
-    course_catalog = json.load(open("courses.json")) 
+    course_catalog = json.load(open("data/courses.json")) 
     matching_courses = [course for course in course_catalog if course['course_id'] == course_id]
     return matching_courses[0] if matching_courses else None
 
