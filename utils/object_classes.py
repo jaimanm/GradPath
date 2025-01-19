@@ -83,6 +83,12 @@ class GraduationPlan:
     """
     self.courses.append(course)
 
+  def clear_courses(self) -> None:
+    """
+    Clear all courses from the GraduationPlan.
+    """
+    self.courses.clear()
+
   def __repr__(self) -> str:
     """
     Return a string representation of the GraduationPlan.

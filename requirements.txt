@@ -1,2 +1,4 @@
 networkx
 matplotlib
+numpy
+tkinter
