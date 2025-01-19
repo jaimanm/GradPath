@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from utils.object_classes import GraduationPlan
 import textwrap
 import numpy as np
+import ipywidgets as widgets
+from IPython.display import display
 
 def minimize_crossings_within_semester(courses):
     # First assign initial vertical positions for courses with no prerequisites
@@ -81,13 +83,15 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
             pos[course] = (x, y)
 
     
-    plt.figure(figsize=(20, 15))
-    
-    # Draw nodes
-    nx.draw_networkx_nodes(G, pos,
-                          node_color=['lightgray' if course.completed else 'lightblue' for course in G.nodes()],
-                          node_size=2800,
-                          node_shape='o')
+    fig = plt.figure(figsize=(20, 15))
+    plt.title("Course Prerequisite Diagram")
+    ax = plt.gca()
+
+    # Draw nodes and store the scatter plot object
+    nodes = nx.draw_networkx_nodes(G, pos,
+                                 node_color=['lightgray' if course.completed else 'lightblue' for course in G.nodes()],
+                                 node_size=2800,
+                                 node_shape='o')
     
     for (src, dst) in G.edges():
         nx.draw_networkx_edges(G, pos,
@@ -108,6 +112,15 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
                        font_family='sans-serif',
                        verticalalignment='center')
     
+    # Create annotation object but make it invisible
+    annot = ax.annotate("", 
+                       xy=(0,0), 
+                       xytext=(20,20),
+                       textcoords="offset points",
+                       bbox=dict(boxstyle="round", fc="white", alpha=0.8),
+                       arrowprops=dict(arrowstyle="->"),)
+    annot.set_visible(False)
+    
     # Add semester separators
     max_semester = max(course.semester for course in plan.courses)
     for semester in range(1, max_semester + 2):
@@ -116,7 +129,43 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
                    linestyle=':',
                    alpha=0.3)
     
-    plt.title("Course Prerequisite Diagram")
+    def update_annot(ind, nodes):
+        # Get the course object for the hovered node
+        node_list = list(G.nodes())
+        course = node_list[ind["ind"][0]]
+        
+        # Get position
+        pos = nodes.get_offsets()[ind["ind"][0]]
+        annot.xy = pos
+        
+        # Create hover text with course information and wrap text
+        text = textwrap.fill(f"Course: {course.course_id}", width=30) + "\n"
+        text += textwrap.fill(f"Semester: {course.semester}", width=30) + "\n"
+        text += textwrap.fill(f"Credits: {course.credits}", width=30) + "\n"
+        if course.prerequisites:
+            prereq_text = f"Prerequisites: {", ".join([p.course_id for p in course.prerequisites])}"
+            text += textwrap.fill(prereq_text, width=50) + "\n"
+
+        
+        text += textwrap.fill(f"Description:  {course.description}", width=50)
+    
+        annot.set_text(text)
+
+    def hover(event):
+        if event.inaxes == ax:
+            cont, ind = nodes.contains(event)
+            if cont:
+                annot.set_visible(True)
+                update_annot(ind, nodes)
+                fig.canvas.draw_idle()
+            else:
+                if annot.get_visible():
+                    annot.set_visible(False)
+                    fig.canvas.draw_idle()
+
+    fig.canvas.mpl_connect("motion_notify_event", hover)
+    
     plt.axis('off')
     plt.tight_layout()
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)  # Adjust the margins
     plt.show()
