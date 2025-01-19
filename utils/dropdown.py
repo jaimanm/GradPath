@@ -113,6 +113,10 @@ def create_control_window(plan: GraduationPlan, available_course_ids: list[str])
                 prereq.semester = determine_semester(prereq, plan.courses)
                 plan.add_course(prereq)
                 course_map[prereq.course_id] = prereq
+
+                # Remove prerequisite from dropdown options
+                if prereq.course_id in current_options:
+                    current_options.remove(prereq.course_id)
         
         # Set prerequisites for the selected course
         selected_prereq_ids = PREREQUISITES.get(selected, [])
@@ -147,5 +151,5 @@ def create_control_window(plan: GraduationPlan, available_course_ids: list[str])
     # Create initial empty diagram
     create_prerequisite_diagram(plan)
     
-    control_window.mainloop()
     plt.show()
+    control_window.mainloop()

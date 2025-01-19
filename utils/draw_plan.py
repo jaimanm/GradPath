@@ -1,7 +1,6 @@
 from matplotlib import transforms
 import networkx as nx
 import matplotlib.pyplot as plt
-# plt.ion()
 from utils.object_classes import GraduationPlan
 import textwrap
 import numpy as np
@@ -52,6 +51,7 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
         fig = plt.figure(figsize=(15, 10))
         plt.title("Course Prerequisite Diagram", pad=50)
         plt.axis('off')
+        fig.canvas.toolbar.pan()
         plt.draw()
         return
 
@@ -187,10 +187,26 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
                     annot.set_visible(False)
                     fig.canvas.draw_idle()
 
+    # Add instruction text
+    instruction_text = ax.text(0.5, 0.02, 
+                             "Use left click to pan, right click to zoom",
+                             horizontalalignment='center',
+                             verticalalignment='bottom',
+                             transform=ax.transAxes,
+                             bbox=dict(facecolor='white', edgecolor='black', alpha=0.8),
+                             zorder=1000)
+
+    def on_mouse_click(event):
+        if event.button in [1, 3]:  # Left click (1) or right click (3)
+            instruction_text.set_visible(False)
+            fig.canvas.draw_idle()
+
     fig.canvas.mpl_connect("motion_notify_event", hover)
-    
+    fig.canvas.mpl_connect("button_press_event", on_mouse_click)
+
     plt.axis('off')
     plt.tight_layout()
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)  # Adjust the margins
+    fig.canvas.toolbar.pan()
     plt.draw()
 
