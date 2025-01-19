@@ -1,8 +1,4 @@
-<<<<<<<< HEAD:utils/test_object_classes.py
 from utils.object_classes import *
-========
-from .object_classes import *
->>>>>>>> main:backend/util/test_object_classes.py
 
 def test_course_initialization():
   course = Course("CMSC131", 1)
