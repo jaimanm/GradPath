@@ -38,8 +38,6 @@ upper_level1 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level2 = Course("UPPER LEVEL VERIFICATION", 7)
 upper_level3 = Course("UPPER LEVEL VERIFICATION", 7)
 
-print(cmsc131)
-
 
 # Create graduation plan
 plan = GraduationPlan()
@@ -50,5 +48,5 @@ all_courses = [cmsc131, math141, math140, cmsc132, cmsc250, stat400,
 
 plan.courses = all_courses
 
-# Draw the diagram
-create_prerequisite_diagram(plan)
+# # Draw the diagram
+# create_prerequisite_diagram(plan)
