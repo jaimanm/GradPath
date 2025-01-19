@@ -1,8 +1,8 @@
 import textwrap
 import networkx as nx
 import matplotlib.pyplot as plt
-from .draw_plan import create_prerequisite_diagram
-from .object_classes import Course, GraduationPlan
+from utils.draw_plan import create_prerequisite_diagram
+from object_classes import Course, GraduationPlan
 
 # Create courses (semester 1)
 cmsc131 = Course("CMSC131", 1, completed=True)
