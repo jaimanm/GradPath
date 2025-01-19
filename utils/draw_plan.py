@@ -1,11 +1,10 @@
 from matplotlib import transforms
 import networkx as nx
 import matplotlib.pyplot as plt
+# plt.ion()
 from utils.object_classes import GraduationPlan
 import textwrap
 import numpy as np
-import ipywidgets as widgets
-from IPython.display import display
 
 def minimize_crossings_within_semester(courses):
     # First assign initial vertical positions for courses with no prerequisites
@@ -43,19 +42,30 @@ def minimize_crossings_within_semester(courses):
             course.vertical_position = i
 
 def create_prerequisite_diagram(plan: GraduationPlan) -> None:
+    # Close any existing plots
+    plt.close('all')
+    
+    # Create new diagram
     G = nx.DiGraph()
+    
+    if not plan.courses:  # If plan is empty, just create empty diagram
+        fig = plt.figure(figsize=(15, 10))
+        plt.title("Course Prerequisite Diagram", pad=50)
+        plt.axis('off')
+        plt.draw()
+        return
 
     minimize_crossings_within_semester(plan.courses)
 
     # Create a color palette for semesters
     colors = plt.cm.Set3(np.linspace(0, 1, max(course.semester for course in plan.courses)))
-
     
     # Add nodes and edges
     for course in plan.courses:
         G.add_node(course, semester=course.semester)
         for prereq in course.prerequisites:
-            G.add_edge(prereq, course)
+            if prereq in plan.courses:
+                G.add_edge(prereq, course)
     
     # Create layout
     pos = {}
@@ -83,8 +93,7 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
             y = start_y - (course.vertical_position * 3)
             pos[course] = (x, y)
 
-    
-    fig = plt.figure(figsize=(20, 15))
+    fig = plt.figure(figsize=(15, 10))
     plt.title("Course Prerequisite Diagram", pad=50)
     ax = plt.gca()
 
@@ -104,6 +113,7 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
                             min_source_margin=27,
                             min_target_margin=27,
                             alpha=0.7)  # Add some transparency to make overlapping edges more visible
+    
     # Draw labels
     nx.draw_networkx_labels(G, pos,
                        labels={course: textwrap.fill(course.course_id, width=15) for course in G.nodes()},
@@ -125,16 +135,15 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
         # Add semester label between dividers using blended transform
         if semester > 0:
             ax = plt.gca()
-            # Create blended transform: data coordinates for x, axes coordinates for y
             trans = transforms.blended_transform_factory(ax.transData, ax.transAxes)
             ax.text(semester * 4,  # x position in data coordinates
-                    1.02,  # y position in axes coordinates (above plot)
+                    0.98,  # y position in axes coordinates
                     f"Semester {semester}",
                     horizontalalignment='center',
                     verticalalignment='bottom',
                     fontsize=12,
                     fontweight='bold',
-                    transform=trans,  # Use blended transform
+                    transform=trans,
                     bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
     
     # Create annotation object but make it invisible
@@ -145,10 +154,6 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
                        bbox=dict(boxstyle="round", fc="white", alpha=0.8),
                        arrowprops=dict(arrowstyle="->"),)
     annot.set_visible(False)
-
-
-
-
     
     def update_annot(ind, nodes):
         # Get the course object for the hovered node
@@ -166,10 +171,8 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
         if course.prerequisites:
             prereq_text = f"Prerequisites: {", ".join([p.course_id for p in course.prerequisites])}"
             text += textwrap.fill(prereq_text, width=50) + "\n"
-
         
-        text += textwrap.fill(f"Description:  {course.description}", width=50)
-    
+        text += textwrap.fill(f"Description: {course.description}", width=50)
         annot.set_text(text)
 
     def hover(event):
@@ -189,4 +192,5 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
     plt.axis('off')
     plt.tight_layout()
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)  # Adjust the margins
-    plt.show()
+    plt.draw()
+

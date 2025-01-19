@@ -1,9 +1,3 @@
-import json
-
-from utils.plan_builder import assign_semesters
-
-course_catalog = json.load(open("data/courses.json"))
-
 sample_requirements = [
   "MATH140",
   "MATH141",
@@ -29,6 +23,7 @@ min_credits = 50
 from utils.object_classes import Course
 courses = [Course(course) for course in sample_requirements]
 
+# Check total credit requirement
 total_credits = sum([int(course.credits) for course in courses])
 
 if total_credits >= min_credits:
@@ -61,6 +56,8 @@ for course in courses:
       course.prerequisites.append(prereq_course_found)
 
 
+from utils.plan_builder import assign_semesters
+
 # GRAD PLAN BUILDING
 assign_semesters(courses)
 
@@ -72,6 +69,8 @@ aps_completed = [
 exemption_exams = [
   "CMSC132"
 ]
+import json
+
 ap_credits = json.load(open("data/ap-credits.json"))
 for ap in aps_completed:
   # find the corresponding course
@@ -94,3 +93,6 @@ plan = GraduationPlan(courses)
 
 from utils.draw_plan import create_prerequisite_diagram
 create_prerequisite_diagram(plan)
+
+from matplotlib import pyplot as plt
+plt.show()
