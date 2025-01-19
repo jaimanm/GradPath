@@ -1,3 +1,4 @@
+from matplotlib import transforms
 import networkx as nx
 import matplotlib.pyplot as plt
 from utils.object_classes import GraduationPlan
@@ -84,7 +85,7 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
 
     
     fig = plt.figure(figsize=(20, 15))
-    plt.title("Course Prerequisite Diagram")
+    plt.title("Course Prerequisite Diagram", pad=50)
     ax = plt.gca()
 
     # Draw nodes and store the scatter plot object
@@ -112,6 +113,30 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
                        font_family='sans-serif',
                        verticalalignment='center')
     
+    # Add semester separators and labels
+    max_semester = max(course.semester for course in plan.courses)
+    for semester in range(max_semester + 1):
+        # Draw vertical separator line
+        plt.axvline(x=semester * 4 + 2,
+                color='black',
+                linestyle=':',
+                alpha=0.3)
+        
+        # Add semester label between dividers using blended transform
+        if semester > 0:
+            ax = plt.gca()
+            # Create blended transform: data coordinates for x, axes coordinates for y
+            trans = transforms.blended_transform_factory(ax.transData, ax.transAxes)
+            ax.text(semester * 4,  # x position in data coordinates
+                    1.02,  # y position in axes coordinates (above plot)
+                    f"Semester {semester}",
+                    horizontalalignment='center',
+                    verticalalignment='bottom',
+                    fontsize=12,
+                    fontweight='bold',
+                    transform=trans,  # Use blended transform
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+    
     # Create annotation object but make it invisible
     annot = ax.annotate("", 
                        xy=(0,0), 
@@ -120,14 +145,10 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
                        bbox=dict(boxstyle="round", fc="white", alpha=0.8),
                        arrowprops=dict(arrowstyle="->"),)
     annot.set_visible(False)
-    
-    # Add semester separators
-    max_semester = max(course.semester for course in plan.courses)
-    for semester in range(1, max_semester + 2):
-        plt.axvline(x=semester * 4 - 2, 
-                   color='black',
-                   linestyle=':',
-                   alpha=0.3)
+
+
+
+
     
     def update_annot(ind, nodes):
         # Get the course object for the hovered node
