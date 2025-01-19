@@ -6,3 +6,22 @@ A program that automatically generates and visualizes university graduation plan
 
 Data is retrieved or downloaded from university servers. Then, the data is processed and converted into custom Python objects.
 These Python objects are then ingested by a program that generates a graph structure using networkx and visualizes it using matplotlib.
+
+## How to run
+
+### Prerequisites
+
+Python installed on your system
+
+### Run commands
+
+```bash
+init.sh
+source .venv/bin/activate
+
+# to see fully made diagram
+python complete_diagram.py
+
+# to build your own diagram
+python build_your_own.py
+```
