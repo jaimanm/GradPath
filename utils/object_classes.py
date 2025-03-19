@@ -97,3 +97,17 @@ class GraduationPlan:
     str: A string representation of the graduation plan.
     """
     return f"GraduationPlan({self.courses})"
+
+  def to_json(self):
+    courses_data = []
+    for course in self.courses:
+      courses_data.append({
+        'id': course.course_id,
+        'prerequisites': [prereq.course_id for prereq in course.prerequisites],
+        'semester': course.semester,
+        'completed': course.completed,
+        'vertical_position': course.vertical_position,
+        'credits': getattr(course, 'credits', 0),
+        'description': getattr(course, 'description', '')
+      })
+    return {'courses': courses_data}
