@@ -210,3 +210,20 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
     fig.canvas.toolbar.pan()
     plt.draw()
 
+def create_cytoscape_diagram(plan: GraduationPlan) -> None:
+    minimize_crossings_within_semester(plan.courses)
+
+    # Prepare data for cytoscape.js
+    elements = []
+    for course in plan.courses:
+        elements.append({
+            'data': {'id': course.course_id, 'label': course.course_id}
+        })
+        for prereq in course.prerequisites:
+            if prereq in plan.courses:
+                elements.append({
+                    'data': {'source': prereq.course_id, 'target': course.course_id}
+                })
+
+    # Return the serialized data
+    return plan.to_json()
