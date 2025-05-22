@@ -7,6 +7,14 @@ A program that automatically generates and visualizes university graduation plan
 Data is retrieved or downloaded from university servers. Then, the data is processed and converted into custom Python objects.
 These Python objects are then ingested by a program that generates a graph structure using networkx and visualizes it using matplotlib.
 
+## Features
+
+- Visualization of course prerequisites and dependencies
+- Interactive course selection
+- Course completion tracking (click on a course to mark it as completed)
+- Semester-based course organization
+- Responsive layout with dark mode support
+
 ## How to run
 
 ### Prerequisites
