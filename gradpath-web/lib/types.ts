@@ -13,6 +13,8 @@ export interface Prerequisite {
   type: "and" | "or" | "course";
   course?: string;
   children?: Prerequisite[];
+  prerequisites?: string[]; // direct child course IDs
+  parents?: string[]; // parent course IDs
 }
 
 export interface GraduationPlan {
@@ -43,6 +45,29 @@ export interface CourseEdge {
 export interface GraphData {
   nodes: CourseNode[];
   edges: CourseEdge[];
+}
+
+export interface CourseJson {
+  course_id: string;
+  semester: string;
+  name: string;
+  dept_id: string;
+  department: string;
+  credits: string;
+  description: string;
+  grading_method: string[];
+  gen_ed: string[][];
+  core: string[];
+  relationships: {
+    coreqs: string | null;
+    prereqs: string | null;
+    formerly: string | null;
+    restrictions: string | null;
+    additional_info: string | null;
+    also_offered_as: string | null;
+    credit_granted_for: string | null;
+  };
+  sections: string[];
 }
 
 declare module "cytoscape" {

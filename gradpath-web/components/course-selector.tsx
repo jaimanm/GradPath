@@ -12,6 +12,14 @@ import {
 } from "@/components/ui/select";
 import { assignSemesters } from "@/lib/course-layout";
 import { getAllPrerequisitesRecursive } from "@/lib/course-layout";
+import {
+  getCoursePrerequisites,
+  // getAllPrerequisitePathsRecursive,
+  expandPrereqTree,
+  getAllPathsFromExpandedTree,
+  visualizePrereqTree,
+  annotatePrereqTree,
+} from "@/lib/prereq-utils";
 
 interface CourseSelectorProps {
   availableCourses: Course[];
@@ -35,7 +43,7 @@ export function CourseSelector({
     setSelectedCourseId(courseId);
   };
 
-  const handleAddCourse = () => {
+  const handleAddCourse = async () => {
     if (!selectedCourseId) return;
 
     const courseToAdd = availableCourses.find((c) => c.id === selectedCourseId);
@@ -46,21 +54,48 @@ export function CourseSelector({
       selectedCourseId,
       availableCourses
     );
+    console.log("All prerequisites:", allPrereqs);
+
+    // // --- Print advanced prerequisite paths and dict ---
+    // const prereqsTree = await getCoursePrerequisites(selectedCourseId);
+    // if (prereqsTree) {
+    //   console.log(`Prerequisite tree for ${selectedCourseId}`, prereqsTree);
+    //   const { paths, prereqDict } = await getAllPrerequisitePathsRecursive(
+    //     prereqsTree
+    //   );
+    //   console.log("All advanced prerequisite paths:", paths);
+    //   console.log("All prerequisite objects encountered:", prereqDict);
+    // }
+    // // ---
+
+    // New prerequisite stuff -------
+    const coursePrereqs = await getCoursePrerequisites(selectedCourseId);
+    if (coursePrereqs) {
+      console.log(
+        `Prerequisite tree for ${selectedCourseId}`,
+        visualizePrereqTree(coursePrereqs)
+      );
+      const expandedTree = await expandPrereqTree(coursePrereqs);
+      // Annotate the expanded tree with prerequisites and parents
+      annotatePrereqTree(expandedTree);
+      console.log(
+        "Expanded prerequisite tree (with prerequisites/parents):",
+        expandedTree
+      );
+      const paths: string[][] = getAllPathsFromExpandedTree(expandedTree);
+      console.log("All prerequisite paths:", paths);
+    }
+    // -----------------------------
 
     // Create a new array with existing courses, prerequisites, and the selected course
     const newCourses = [...selectedCourses];
 
-    // Add prerequisites first
-    allPrereqs.forEach((prereq) => {
+    // Add selected course and prerequisites if not already present
+    [courseToAdd, ...allPrereqs].forEach((prereq) => {
       if (!newCourses.some((c) => c.id === prereq.id)) {
         newCourses.push(prereq);
       }
     });
-
-    // Then add the selected course if not already added
-    if (!newCourses.some((c) => c.id === courseToAdd.id)) {
-      newCourses.push(courseToAdd);
-    }
 
     // Assign semesters based on prerequisites
     const coursesWithSemesters = assignSemesters(newCourses);

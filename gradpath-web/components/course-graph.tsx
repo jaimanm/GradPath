@@ -49,11 +49,6 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
     const maxSemester = Math.max(...semesterNumbers);
     const minSemester = Math.min(...semesterNumbers);
 
-    // Log for debugging
-    console.log("Semester groups:", Object.keys(semesterGroups));
-    console.log("Min semester:", minSemester);
-    console.log("Max semester:", maxSemester);
-
     // Create a continuous sequence of semesters with no gaps
     const availableSemesters = new Set(semesterNumbers);
 
