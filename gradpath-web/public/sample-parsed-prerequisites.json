@@ -1,0 +1,15 @@
+{
+  "courseA": {
+    "type": "and",
+    "children": [
+      {
+        "type": "or",
+        "children": [
+          { "type": "course", "course": "courseB" },
+          { "type": "course", "course": "courseD" }
+        ]
+      },
+      { "type": "course", "course": "courseC" }
+    ]
+  }
+}

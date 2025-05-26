@@ -70,19 +70,24 @@ export default function Home() {
         {/* Course Selection Panel */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Course Selection</CardTitle>
+            <CardTitle>Course Planning</CardTitle>
             <CardDescription>
-              Select courses to add to your graduation plan. Prerequisites will
-              be automatically included.
+              Use the multiple graduation path generator to explore different
+              ways to complete your degree, or manually select courses one by
+              one.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-6">
-              <CourseSelector
-                availableCourses={sampleCourses}
-                selectedCourses={selectedCourses}
-                onCoursesChange={setSelectedCourses}
-              />
+              {/* Multiple Graduation Plan Generator */}
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-3">Manual Course Selection</h3>
+                <CourseSelector
+                  availableCourses={sampleCourses}
+                  selectedCourses={selectedCourses}
+                  onCoursesChange={setSelectedCourses}
+                />
+              </div>
 
               <div className="flex justify-center">
                 <Button variant="outline" onClick={handleLoadSamplePlan}>
@@ -92,7 +97,7 @@ export default function Home() {
 
               {selectedCourses.length > 0 && (
                 <div className="mt-4">
-                  <h3 className="font-medium mb-2">Selected Courses:</h3>
+                  <h3 className="font-medium mb-2">Current Plan:</h3>
                   <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto">
                     {selectedCourses.map((course) => (
                       <div

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Course } from "@/lib/types";
+import type { Course, Prerequisite } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -14,11 +14,9 @@ import { assignSemesters } from "@/lib/course-layout";
 import { getAllPrerequisitesRecursive } from "@/lib/course-layout";
 import {
   getCoursePrerequisites,
-  // getAllPrerequisitePathsRecursive,
-  expandPrereqTree,
-  getAllPathsFromExpandedTree,
+  buildPrereqTree,
   visualizePrereqTree,
-  annotatePrereqTree,
+  getExamplePrerequisites,
 } from "@/lib/prereq-utils";
 
 interface CourseSelectorProps {
@@ -66,25 +64,55 @@ export function CourseSelector({
     //   console.log("All advanced prerequisite paths:", paths);
     //   console.log("All prerequisite objects encountered:", prereqDict);
     // }
-    // // ---
+    // ---
 
     // New prerequisite stuff -------
-    const coursePrereqs = await getCoursePrerequisites(selectedCourseId);
-    if (coursePrereqs) {
-      console.log(
-        `Prerequisite tree for ${selectedCourseId}`,
-        visualizePrereqTree(coursePrereqs)
-      );
-      const expandedTree = await expandPrereqTree(coursePrereqs);
-      // Annotate the expanded tree with prerequisites and parents
-      annotatePrereqTree(expandedTree);
-      console.log(
-        "Expanded prerequisite tree (with prerequisites/parents):",
-        expandedTree
-      );
-      const paths: string[][] = getAllPathsFromExpandedTree(expandedTree);
-      console.log("All prerequisite paths:", paths);
-    }
+    /**
+     * EXAMPLE 1 of prebuilt tree:
+     * prerequisites for courseA: courseB and courseC
+     * prerequisites for courseB: courseD
+     */
+    const example1: Prerequisite = {
+      type: "and",
+      children: [
+        {
+          type: "and",
+          children: [
+            { type: "course", course: "courseD", parent: "courseB" },
+            { type: "course", course: "courseB", parent: "courseA" },
+          ],
+        },
+        { type: "course", course: "courseC", parent: "courseA" },
+      ],
+    };
+    console.log(`Expanded example 1 tree\n`, visualizePrereqTree(example1));
+
+    /**
+     * EXAMPLE 2 of prebuilt tree (includes "or" logic):
+     * prerequisites for courseA: courseB and courseC
+     * prerequisites for courseB: courseD or courseE
+     */
+    const example2: Prerequisite = {
+      type: "and",
+      children: [
+        {
+          type: "and",
+          children: [
+            {
+              type: "or",
+              children: [
+                { type: "course", course: "courseD", parent: "courseB" },
+                { type: "course", course: "courseE", parent: "courseB" },
+              ],
+            },
+            { type: "course", course: "courseB", parent: "courseA" },
+          ],
+        },
+        { type: "course", course: "courseC", parent: "courseA" },
+      ],
+    };
+    console.log(`Expanded example 2 tree\n`, visualizePrereqTree(example2));
+
     // -----------------------------
 
     // Create a new array with existing courses, prerequisites, and the selected course

@@ -238,7 +238,9 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
           width: 1, // Increased width for better visibility
           height: "data(height)",
           shape: "rectangle",
-          "background-color": "data(color)", // Use the color from the data
+          "background-color": () => {
+            return darkMode ? "#ddd" : "#333";
+          },
           "border-width": 0,
           opacity: 1, // Full opacity
         },
@@ -257,7 +259,7 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
         },
       },
       {
-        selector: "edge:not([type='divider'])",
+        selector: "edge",
         style: {
           width: 2,
           "line-color": (ele) => {
@@ -371,7 +373,7 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
         elements={[]} // We'll add elements in the useEffect
         style={{ width: "100%", height: "100%" }}
         cy={handleCytoscapeReady}
-        wheelSensitivity={0.2}
+        // wheelSensitivity={0.2}
         boxSelectionEnabled={false}
       />
 
