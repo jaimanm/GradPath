@@ -5,7 +5,7 @@ export async function getCoursePrerequisites(
   courseId: string
 ): Promise<Prerequisite | null> {
   try {
-    const res = await fetch("parsed_prerequisites_cleaned.json");
+    const res = await fetch("parsed_prerequisites_cleaned_fixed.json");
     if (!res.ok) return null;
     const data = await res.json();
     return data[courseId] || null;

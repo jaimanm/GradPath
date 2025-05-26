@@ -7,7 +7,6 @@ import {
   expandPrereqTree,
   visualizePrereqTree,
   splitPrereqTree,
-  assignSemesters,
 } from "@/lib/prereq-utils";
 import { Prerequisite } from "@/lib/types";
 import { CourseGraph } from "@/components/course-graph";
@@ -16,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem,
 } from "@/components/ui/select";
 import {
   Command,
@@ -26,6 +24,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { PrereqTreeSection } from "@/components/prereq-tree-section";
 
 export default function PrereqExplorerPage() {
   const [courseIds, setCourseIds] = useState<string[]>([]);
@@ -208,10 +207,15 @@ export default function PrereqExplorerPage() {
             </SelectContent>
           </Select>
           {loading && <div>Loading prerequisite tree...</div>}
-          {prereqTreeString && (
-            <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-xs overflow-x-auto">
-              {prereqTreeString}
-            </pre>
+          {/* Show selected course's tree if available */}
+          {prereqTree && (
+            <PrereqTreeSection
+              title={`Selected: ${selectedCourseId}`}
+              tree={prereqTree}
+            />
+          )}
+          {!prereqTree && selectedCourseId && !loading && (
+            <div>No prerequisites found.</div>
           )}
         </CardContent>
       </Card>
@@ -221,52 +225,17 @@ export default function PrereqExplorerPage() {
           <CardTitle>Example Prerequisite Trees</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div>
-            <div className="font-semibold mb-1">Example 1</div>
-            <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-xs overflow-x-auto">
-              {visualizePrereqTree(example1)}
-            </pre>
-            <div className="font-light mt-2 mb-1">
-              Split example 1: {splitPrereqTree(example1).length} trees
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {splitPrereqTree(example1).map((tree, idx) => {
-                assignSemesters(tree);
-                return (
-                  <pre
-                    key={idx}
-                    className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-xs overflow-x-auto"
-                  >
-                    {visualizePrereqTree(tree)}
-                  </pre>
-                );
-              })}
-            </div>
-          </div>
+          <PrereqTreeSection
+            title="Example 1"
+            tree={example1}
+            isExample={true}
+          />
           <hr className="my-4" />
-          <div>
-            <div className="font-semibold mb-1">Example 2</div>
-            <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-xs overflow-x-auto">
-              {visualizePrereqTree(example2)}
-            </pre>
-            <div className="font-light mt-2 mb-1">
-              {" "}
-              Split example 2: {splitPrereqTree(example2).length} trees
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {splitPrereqTree(example2).map((tree, idx) => {
-                assignSemesters(tree);
-                return (
-                  <pre
-                    key={idx}
-                    className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-xs overflow-x-auto"
-                  >
-                    {visualizePrereqTree(tree)}
-                  </pre>
-                );
-              })}
-            </div>
-          </div>
+          <PrereqTreeSection
+            title="Example 2"
+            tree={example2}
+            isExample={true}
+          />
         </CardContent>
       </Card>
 
