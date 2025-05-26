@@ -10,7 +10,7 @@ export interface Course {
 }
 
 export type Prerequisite =
-  | { type: "course"; course: string; parent?: string }
+  | { type: "course"; course: string; parent?: string; semester?: number }
   | { type: "or"; children: Prerequisite[] }
   | { type: "and"; children: Prerequisite[] };
 
