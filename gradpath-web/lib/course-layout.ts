@@ -128,7 +128,7 @@ export function assignSemesters(courses: Course[]): Course[] {
 
   const sortedUsedSemesters = Array.from(usedSemesters).sort((a, b) => a - b);
   const semesterMap: Record<number, number> = {};
-  
+
   sortedUsedSemesters.forEach((oldSem, index) => {
     semesterMap[oldSem] = index + 1; // New semester numbers start from 1
   });

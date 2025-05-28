@@ -6,7 +6,10 @@ import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
 import type { Core } from "cytoscape";
 import type { Course } from "@/lib/types";
-import { minimizeCrossings } from "@/lib/course-layout";
+import {
+  minimizeCrossings,
+  getAllPrerequisitesRecursive,
+} from "@/lib/course-layout";
 
 // Register the dagre layout extension
 if (!cytoscape.prototype.hasInitialised) {
@@ -46,11 +49,6 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
     const maxSemester = Math.max(...semesterNumbers);
     const minSemester = Math.min(...semesterNumbers);
 
-    // Log for debugging
-    console.log("Semester groups:", Object.keys(semesterGroups));
-    console.log("Min semester:", minSemester);
-    console.log("Max semester:", maxSemester);
-
     // Create a continuous sequence of semesters with no gaps
     const availableSemesters = new Set(semesterNumbers);
 
@@ -63,8 +61,29 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
       (a, b) => a - b
     );
 
+    // Calculate total columns needed based on semester course counts
+    let totalColumns = 0;
+    const semesterColumnInfo: Record<
+      number,
+      { startColumn: number; columnCount: number }
+    > = {};
+
+    sortedSemesters.forEach((semesterNum) => {
+      const courseCount = semesterGroups[semesterNum]?.length || 0;
+      const columnsNeeded = Math.ceil(courseCount / 5); // 5 courses per column
+      semesterColumnInfo[semesterNum] = {
+        startColumn: totalColumns,
+        columnCount: columnsNeeded,
+      };
+      totalColumns += columnsNeeded;
+    });
+
+    // Add semester header nodes and dividers
     sortedSemesters.forEach((semesterNum, index) => {
-      const xPosition = (index + 1) * 200; // +1 because we want to start from position 1, not 0
+      const semesterInfo = semesterColumnInfo[semesterNum];
+      const centerColumnX =
+        (semesterInfo.startColumn + (semesterInfo.columnCount - 1) / 2) * 200 +
+        200;
 
       elements.push({
         data: {
@@ -73,71 +92,67 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
           type: "semester",
           completed: false,
         },
-        position: { x: xPosition, y: 30 }, // Positioned at top
+        position: { x: centerColumnX, y: 30 }, // Positioned at top, centered over semester columns
         locked: true,
       });
 
       // Add vertical divider line between semesters (except for the first one)
       if (index > 0) {
-        // This divider goes between the previous and current semester
-        const dividerX = xPosition - 100; // Halfway between columns
+        const prevSemesterInfo = semesterColumnInfo[sortedSemesters[index - 1]];
+        const prevSemesterEnd =
+          (prevSemesterInfo.startColumn + prevSemesterInfo.columnCount - 1) *
+            200 +
+          200;
+        const currentSemesterStart = semesterInfo.startColumn * 200 + 200;
+        const dividerX = (prevSemesterEnd + currentSemesterStart) / 2;
 
-        // Calculate height based on number of courses in adjacent semesters
-        const prevSemesterCourseCount =
-          semesterGroups[sortedSemesters[index - 1]]?.length || 0;
-        const currSemesterCourseCount =
-          semesterGroups[semesterNum]?.length || 0;
-        const maxCourseCount = Math.max(
-          prevSemesterCourseCount,
-          currSemesterCourseCount
-        );
-
-        // Calculate divider height - ensure it's at least 500px tall and extends based on course count
-        const verticalSpacing = 100; // Same as course spacing
-
-        // Create a proper divider using a straight edge that won't bend
         elements.push({
           data: {
             id: `semester-divider-${semesterNum}`,
             type: "divider",
             height: 600,
-            color: "#000000", // Add explicit color data
+            color: "#000000",
           },
           position: {
-            // Just add a single node with special styling rather than an edge
             x: dividerX,
-            y: 350, // Adjusted to better center the divider in relation to courses
+            y: 350,
           },
           locked: true,
-          classes: ["divider-node"], // Add a class for more specific styling
+          classes: ["divider-node"],
         });
       }
     });
 
-    // Add course nodes
+    // Add course nodes with column wrapping
     coursesWithLayout.forEach((course) => {
       const semesterCourses = semesterGroups[course.semester] || [];
       const courseIndex = semesterCourses.findIndex((c) => c.id === course.id);
-      const totalCourses = semesterCourses.length;
 
-      // Calculate vertical position based on the course's position in the semester
-      // and center the courses vertically
-      // Calculate startY so that courses are vertically centered in the graph area
-      const maxCoursesInSemester = Math.max(
-        ...Object.values(semesterGroups).map((group) => group.length)
-      );
-      const graphHeight = 600; // Should match the container height
+      // Calculate which column and row this course should be in
+      const coursesPerColumn = 5;
+      const columnIndex = Math.floor(courseIndex / coursesPerColumn);
+      const rowInColumn = courseIndex % coursesPerColumn;
+
+      // Get the effective semester (completed courses go to first semester)
+      const firstSemester = sortedSemesters[0];
+      const effectiveSemester = course.completed
+        ? firstSemester
+        : course.semester || firstSemester;
+
+      // Get semester column info
+      const semesterInfo = semesterColumnInfo[effectiveSemester];
+      const absoluteColumnIndex = semesterInfo.startColumn + columnIndex;
+
+      // Calculate position
+      const x = (absoluteColumnIndex + 1) * 200; // +1 to start from position 200, not 0
+
+      // Calculate vertical position within the column
+      const graphHeight = 600;
       const verticalSpacing = 100;
-      const totalMaxHeight = (maxCoursesInSemester - 1) * verticalSpacing;
-      const startY = graphHeight / 2 + totalMaxHeight / 2;
-      const totalHeight = (totalCourses - 1) * verticalSpacing;
-      const y = startY + courseIndex * verticalSpacing - totalHeight / 2;
-
-      // Get position in the available semesters array
-      // This ensures that courses are positioned with no gaps even if semesters aren't continuous
-      const effectiveSemester = course.semester || 1;
-      const semesterIndex =
-        Array.from(availableSemesters).indexOf(effectiveSemester) + 1;
+      const maxRowsInColumn = coursesPerColumn;
+      const columnHeight = (maxRowsInColumn - 1) * verticalSpacing;
+      const startY = (graphHeight - columnHeight) / 2 + 50; // Center vertically with some top offset
+      const y = startY + rowInColumn * verticalSpacing;
 
       elements.push({
         data: {
@@ -150,7 +165,7 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
           prerequisites: course.prerequisites,
           type: "course",
         },
-        position: { x: semesterIndex * 200, y },
+        position: { x, y },
         locked: true,
       });
     });
@@ -223,7 +238,9 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
           width: 1, // Increased width for better visibility
           height: "data(height)",
           shape: "rectangle",
-          "background-color": "data(color)", // Use the color from the data
+          "background-color": () => {
+            return darkMode ? "#ddd" : "#333";
+          },
           "border-width": 0,
           opacity: 1, // Full opacity
         },
@@ -242,7 +259,7 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
         },
       },
       {
-        selector: "edge:not([type='divider'])",
+        selector: "edge",
         style: {
           width: 2,
           "line-color": (ele) => {
@@ -319,15 +336,25 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
       const courseId = node.id();
       const course = courses.find((c) => c.id === courseId);
 
-      if (course && onCourseUpdate) {
-        // Toggle the completed status
-        const updatedCourse = { ...course, completed: !course.completed };
-        onCourseUpdate(updatedCourse);
+      if (course && onCourseUpdate && cyRef.current) {
+        const isNowCompleted = !course.completed;
 
-        // Update the node data
-        node.data("completed", updatedCourse.completed);
+        // If marking as completed, also mark all recursive prerequisites
+        if (isNowCompleted) {
+          const prereqs = getAllPrerequisitesRecursive(courseId, courses);
+          prereqs.forEach((pr) => {
+            onCourseUpdate({ ...pr, completed: true });
+            cyRef.current!.getElementById(pr.id).data("completed", true);
+          });
+        }
 
-        // The background-color will update automatically since it's a function of the data
+        // Update clicked course
+        const updated = { ...course, completed: isNowCompleted };
+        onCourseUpdate(updated);
+        node.data("completed", isNowCompleted);
+
+        // Recalculate styles
+        cyRef.current.style().update();
       }
     });
 
@@ -346,7 +373,7 @@ export function CourseGraph({ courses, onCourseUpdate }: CourseGraphProps) {
         elements={[]} // We'll add elements in the useEffect
         style={{ width: "100%", height: "100%" }}
         cy={handleCytoscapeReady}
-        wheelSensitivity={0.2}
+        // wheelSensitivity={0.2}
         boxSelectionEnabled={false}
       />
 

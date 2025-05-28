@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Course } from "@/lib/types";
+import type { Course, Prerequisite } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/select";
 import { assignSemesters } from "@/lib/course-layout";
 import { getAllPrerequisitesRecursive } from "@/lib/course-layout";
+import {
+  getCoursePrerequisites,
+  expandPrereqTree,
+  visualizePrereqTree,
+} from "@/lib/prereq-utils";
 
 interface CourseSelectorProps {
   availableCourses: Course[];
@@ -35,7 +40,7 @@ export function CourseSelector({
     setSelectedCourseId(courseId);
   };
 
-  const handleAddCourse = () => {
+  const handleAddCourse = async () => {
     if (!selectedCourseId) return;
 
     const courseToAdd = availableCourses.find((c) => c.id === selectedCourseId);
@@ -46,21 +51,17 @@ export function CourseSelector({
       selectedCourseId,
       availableCourses
     );
+    console.log("All prerequisites:", allPrereqs);
 
     // Create a new array with existing courses, prerequisites, and the selected course
     const newCourses = [...selectedCourses];
 
-    // Add prerequisites first
-    allPrereqs.forEach((prereq) => {
+    // Add selected course and prerequisites if not already present
+    [courseToAdd, ...allPrereqs].forEach((prereq) => {
       if (!newCourses.some((c) => c.id === prereq.id)) {
         newCourses.push(prereq);
       }
     });
-
-    // Then add the selected course if not already added
-    if (!newCourses.some((c) => c.id === courseToAdd.id)) {
-      newCourses.push(courseToAdd);
-    }
 
     // Assign semesters based on prerequisites
     const coursesWithSemesters = assignSemesters(newCourses);
