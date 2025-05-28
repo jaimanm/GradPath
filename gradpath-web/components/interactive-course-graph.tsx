@@ -84,9 +84,6 @@ export function InteractiveCourseGraph({
         selectedCourseId !== lastProcessedCourseId.current // we did not just process the course
       ) {
         // Clear the graph first to ensure only one course and its prerequisites are shown
-        console.log(
-          `Clearing graph and adding new course: ${selectedCourseId}`
-        );
         setCourses([]);
 
         lastProcessedCourseId.current = selectedCourseId;
@@ -111,10 +108,6 @@ export function InteractiveCourseGraph({
           }
         }
 
-        console.log(
-          `Adding selected course ${selectedCourseId} to semester ${targetSemester}`
-        );
-
         // Add the selected course with its prerequisites tracked (selected course starts active)
         await addCourseToGraphWithPrereqs(
           selectedCourseId,
@@ -127,14 +120,8 @@ export function InteractiveCourseGraph({
         if (prereqs && prerequisiteCourses.length > 0) {
           // Add all prerequisites to semester 1 (before the selected course)
           const prerequisiteSemester = 1;
-          console.log(
-            `Adding ${prerequisiteCourses.length} prerequisites to semester ${prerequisiteSemester} (selected course in semester ${targetSemester})`
-          );
 
           for (const prereqCourseId of prerequisiteCourses) {
-            console.log(
-              `Adding prerequisite ${prereqCourseId} to semester ${prerequisiteSemester}`
-            );
             await addCourseToGraph(prereqCourseId, prerequisiteSemester, false); // Prerequisites start inactive/greyed out
           }
 
@@ -143,12 +130,6 @@ export function InteractiveCourseGraph({
             return prevCourses.map((course) => {
               if (course.courseId === selectedCourseId) {
                 const allPrereqs = prerequisiteCourses;
-
-                console.log(
-                  `Updating ${selectedCourseId} with prerequisites: ${allPrereqs.join(
-                    ", "
-                  )}, semester: ${course.semester}`
-                );
 
                 return {
                   ...course,
@@ -161,7 +142,6 @@ export function InteractiveCourseGraph({
 
           // Wait another second, then activate all prerequisites
           await new Promise((resolve) => setTimeout(resolve, 1000));
-          console.log(`Activating ${prerequisiteCourses.length} prerequisites`);
           activatePrerequisites(prerequisiteCourses);
 
           // Now recursively add prerequisites of prerequisites
@@ -196,7 +176,7 @@ export function InteractiveCourseGraph({
         onCourseAdded?.(newCourse);
       }
     } catch (error) {
-      console.error("Error adding course:", error);
+      // console.error("Error adding course:", error);
     } finally {
       setLoading(false);
     }
@@ -227,7 +207,7 @@ export function InteractiveCourseGraph({
         onCourseAdded?.(newCourse);
       }
     } catch (error) {
-      console.error("Error adding course:", error);
+      // console.error("Error adding course:", error);
     } finally {
       setLoading(false);
     }
@@ -279,10 +259,9 @@ export function InteractiveCourseGraph({
               });
             }
           });
-        }
-      } catch (error) {
-        console.error(`Error fetching prerequisites for ${courseId}:`, error);
-      }
+        }    } catch (error) {
+      // console.error(`Error fetching prerequisites for ${courseId}:`, error);
+    }
     }
 
     if (prerequisitesToAdd.length === 0) {
@@ -293,11 +272,6 @@ export function InteractiveCourseGraph({
 
     // Add all prerequisites for this level
     for (const { courseId, parentIds } of prerequisitesToAdd) {
-      console.log(
-        `Adding prerequisite ${courseId} to semester ${targetSemester} (parents: ${parentIds.join(
-          ", "
-        )})`
-      );
       await addCourseToGraph(courseId, targetSemester, isActive);
       addedCourseIds.push(courseId);
     }
@@ -331,14 +305,6 @@ export function InteractiveCourseGraph({
                 ? Math.max(...prereqSemesters) + 1
                 : course.semester;
 
-            console.log(
-              `Updating ${
-                course.courseId
-              } with new prerequisites: ${prereqsToAdd.join(", ")}, semester: ${
-                course.semester
-              } -> ${Math.max(course.semester, requiredSemester)}`
-            );
-
             return {
               ...course,
               prerequisites: updatedPrereqs,
@@ -358,8 +324,6 @@ export function InteractiveCourseGraph({
     if (courseIds.length === 0) {
       return; // Base case: no more courses to process
     }
-
-    console.log(`Processing prerequisite chain for: ${courseIds.join(", ")}`);
 
     // Since we start fresh each time, place new prerequisites in the earliest available semester
     // Find the earliest semester that would conflict and place prerequisites before it
@@ -388,21 +352,11 @@ export function InteractiveCourseGraph({
     );
 
     if (addedCourseIds.length === 0) {
-      console.log("No more prerequisites to add. Chain complete.");
       return; // No more prerequisites to add
     }
 
-    console.log(
-      `Added ${
-        addedCourseIds.length
-      } prerequisites for next level: ${addedCourseIds.join(", ")}`
-    );
-
     // Wait 1 second then activate this level of prerequisites
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log(
-      `Activating ${addedCourseIds.length} prerequisites from current level`
-    );
     activatePrerequisites(addedCourseIds);
 
     // Recursively process the next level

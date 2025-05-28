@@ -34,6 +34,8 @@ export default function PrereqExplorerPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [example3Tree, setExample3Tree] = useState<Prerequisite | null>(null);
+  const [example3Loading, setExample3Loading] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -100,11 +102,58 @@ export default function PrereqExplorerPage() {
       },
     ],
   };
+  // Example 3 will be loaded asynchronously
 
   useEffect(() => {
     getAllCourseIds().then((ids) => {
       if (ids) setCourseIds(ids);
     });
+  }, []);
+
+  // Load example 3 asynchronously
+  useEffect(() => {
+    const loadExample3 = async () => {
+      try {
+        const example3Input: Prerequisite = {
+          type: "or",
+          children: [
+            {
+              type: "course",
+              course: "CMSC412",
+            },
+            {
+              type: "course",
+              course: "CMSC417",
+            },
+            {
+              type: "course",
+              course: "CMSC420",
+            },
+            {
+              type: "course",
+              course: "CMSC430",
+            },
+            {
+              type: "course",
+              course: "CMSC433",
+            },
+            {
+              type: "course",
+              course: "ENEE447",
+            },
+          ],
+        };
+
+        const expandedExample3 = await expandPrereqTree(example3Input);
+        setExample3Tree(expandedExample3);
+      } catch (error) {
+        console.error("Error loading example 3:", error);
+      } finally {
+        setExample3Loading(false);
+      }
+    };
+
+    loadExample3();
   }, []);
 
   const handleCourseSelect = async (courseId: string) => {
@@ -236,6 +285,18 @@ export default function PrereqExplorerPage() {
             tree={example2}
             isExample={true}
           />
+          <hr className="my-4" />
+          {example3Loading ? (
+            <div>Loading Example 3...</div>
+          ) : example3Tree ? (
+            <PrereqTreeSection
+              title="Example 3 (Expanded Real Courses)"
+              tree={example3Tree}
+              isExample={true}
+            />
+          ) : (
+            <div>Failed to load Example 3</div>
+          )}
         </CardContent>
       </Card>
 
