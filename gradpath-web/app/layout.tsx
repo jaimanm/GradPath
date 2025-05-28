@@ -37,6 +37,12 @@ export default function RootLayout({
             >
               Prereq Explorer
             </a>
+            <a
+              href="/interactive-builder"
+              className="mx-2 font-semibold hover:underline"
+            >
+              Interactive Builder
+            </a>
           </nav>
           {children}
         </ThemeProvider>

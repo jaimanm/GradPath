@@ -5,7 +5,7 @@ export async function getCoursePrerequisites(
   courseId: string
 ): Promise<Prerequisite | null> {
   try {
-    const res = await fetch("parsed_prerequisites_cleaned_fixed.json");
+    const res = await fetch("/parsed_prerequisites_cleaned_fixed.json");
     if (!res.ok) return null;
     const data = await res.json();
     return data[courseId] || null;
@@ -17,11 +17,24 @@ export async function getCoursePrerequisites(
 // Utility to load all course ids from the courses.json file
 export async function getAllCourseIds(): Promise<string[] | null> {
   try {
-    const res = await fetch("courses.json");
+    const res = await fetch("/courses.json");
     if (!res.ok) return null;
     const data = await res.json();
     // Try to get id, course_id, or fallback to string
     return data.map((course: any) => course.course_id).filter(Boolean);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Utility to get course details from courses.json
+export async function getCourseDetails(courseId: string) {
+  try {
+    const res = await fetch("/courses.json");
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Find course by id
+    return data.find((course: any) => course.course_id === courseId) || null;
   } catch (e) {
     return null;
   }
