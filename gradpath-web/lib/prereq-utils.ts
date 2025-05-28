@@ -27,6 +27,19 @@ export async function getAllCourseIds(): Promise<string[] | null> {
   }
 }
 
+// Utility to get course details from courses.json
+export async function getCourseDetails(courseId: string) {
+  try {
+    const res = await fetch("courses.json");
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Find course by id
+    return data.find((course: any) => course.course_id === courseId) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 /**
  * Recursively expands a prerequisite tree so that all leaf nodes are courses with no further prerequisites.
  * This makes it easier to enumerate all minimal prerequisite paths.

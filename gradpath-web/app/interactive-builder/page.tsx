@@ -14,23 +14,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getAllCourseIds } from "@/lib/prereq-utils";
-import { Prerequisite } from "@/lib/types";
+import {
+  getAllCourseIds,
+  getCoursePrerequisites,
+  visualizePrereqTree,
+} from "@/lib/prereq-utils";
+import { Prerequisite, Course } from "@/lib/types";
 import { useEffect, useState } from "react";
+import {
+  InteractiveCourse,
+  InteractiveCourseGraph,
+} from "@/components/interactive-course-graph";
 
-export default function PrereqExplorerPage() {
+export default function InteractiveBuilderPage() {
   const [courseIds, setCourseIds] = useState<string[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [prereqTree, setPrereqTree] = useState<Prerequisite | null>(null);
+  const [open, setOpen] = useState(false);
+  const [addedCourses, setAddedCourses] = useState<InteractiveCourse[]>([]);
 
-  const handleCourseSelect = (courseId: string) => {
+  const handleCourseSelect = async (courseId: string) => {
     setSelectedCourseId(courseId);
-    setLoading(true);
-    setPrereqTree(null);
+    setOpen(false); // Close dropdown after selection
+  };
 
-    // fetch prerequisites for the selected course
+  const handleCourseAdded = (course: InteractiveCourse) => {
+    setAddedCourses((prev) => [...prev, course]);
+  };
+
+  const handleGraphCleared = () => {
+    setSelectedCourseId(""); // Reset selected course when graph is cleared
+    setAddedCourses([]); // Clear added courses list
+  };
+
+  // Only reset search when dropdown is closed
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) setSearch("");
   };
 
   useEffect(() => {
@@ -51,12 +71,17 @@ export default function PrereqExplorerPage() {
     <div className="max-w-6xl mx-auto py-8 flex flex-col gap-8">
       <Card>
         <CardHeader>
-          <CardTitle>Interactive GradPlan Builder </CardTitle>
+          <CardTitle>Interactive GradPlan Builder</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Select value={selectedCourseId} onValueChange={handleCourseSelect}>
+          <Select
+            value={selectedCourseId}
+            onValueChange={handleCourseSelect}
+            open={open}
+            onOpenChange={handleOpenChange}
+          >
             <SelectTrigger className="w-full max-w-md">
-              <SelectValue placeholder="Select a course">
+              <SelectValue placeholder="Select a course to add">
                 {selectedCourseId || null}
               </SelectValue>
             </SelectTrigger>
@@ -90,6 +115,19 @@ export default function PrereqExplorerPage() {
               </Command>
             </SelectContent>
           </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Course Graph</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InteractiveCourseGraph
+            selectedCourseId={selectedCourseId}
+            onCourseAdded={handleCourseAdded}
+            onGraphCleared={handleGraphCleared}
+          />
         </CardContent>
       </Card>
     </div>
