@@ -1,0 +1,328 @@
+// Pastel Colors for Semesters
+const SEMESTER_COLORS = [
+    '#FFB3BA', // Semester 1: Pastel Red/Pink
+    '#FFDFBA', // Semester 2: Pastel Orange
+    '#FFFFBA', // Semester 3: Pastel Yellow
+    '#BAFFC9', // Semester 4: Pastel Green
+    '#BAE1FF', // Semester 5: Pastel Blue
+    '#E1BAFF', // Semester 6: Pastel Purple
+    '#FFBAE1', // Semester 7: Pastel Pink
+    '#C4FAF8'  // Semester 8: Pastel Cyan
+];
+
+const cy = cytoscape({
+    container: document.getElementById('cy'),
+    autoungrabify: true, // User cannot grab/move nodes
+    style: [
+        {
+            selector: 'node',
+            style: {
+                'label': 'data(label)',
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'background-color': 'data(color)',
+                'border-width': 2,
+                'border-color': '#888',
+                'width': '100px',
+                'height': '60px',
+                'shape': 'round-rectangle',
+                'font-size': '14px',
+                'font-weight': 'bold',
+                'color': '#333'
+            }
+        },
+        {
+            selector: 'edge',
+            style: {
+                'width': 3,
+                'line-color': 'data(color)',
+                'target-arrow-color': 'data(color)',
+                'target-arrow-shape': 'triangle',
+                'curve-style': 'bezier',
+                'opacity': 0.8
+            }
+        },
+        {
+            selector: '.semester-header',
+            style: {
+                'background-opacity': 0,
+                'border-width': 0,
+                'font-size': '20px',
+                'font-weight': 'bold',
+                'color': '#555',
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'width': '200px',
+                'height': '40px'
+            }
+        },
+        {
+            selector: '.highlighted',
+            style: {
+                'background-color': '#e1f0ff',
+                'line-color': '#007aff',
+                'target-arrow-color': '#007aff',
+                'transition-property': 'background-color, line-color, target-arrow-color',
+                'transition-duration': '0.5s'
+            }
+        }
+    ],
+    layout: {
+        name: 'preset' // We will calculate positions manually
+    }
+});
+
+// State
+let addedCourses = new Set();
+
+// DOM Elements
+const selectEl = document.getElementById('course-select');
+const addBtn = document.getElementById('add-btn');
+const clearBtn = document.getElementById('clear-btn');
+
+// Populate Dropdown
+function initDropdown() {
+    const sortedIds = DROPDOWN_OPTIONS.sort();
+    sortedIds.forEach(id => {
+        const info = COURSE_CATALOG[id];
+        const name = info ? info.name : id;
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = `${id}: ${name}`;
+        selectEl.appendChild(option);
+    });
+}
+
+// Logic to recursively finding prerequisites
+function getFullPrereqTree(courseId, tree = new Set()) {
+    if (tree.has(courseId)) return tree;
+    tree.add(courseId);
+
+    const prereqs = PREREQUISITE_RULES[courseId] || [];
+    prereqs.forEach(pId => {
+        getFullPrereqTree(pId, tree);
+    });
+    
+    return tree;
+}
+
+// Topological Sort for Semester Assignment
+function calculateSemesters(courseIds) {
+    const graph = {};
+    const inDegree = {};
+    
+    // Initialize
+    courseIds.forEach(id => {
+        graph[id] = [];
+        inDegree[id] = 0;
+    });
+
+    // Build Graph from active courses
+    courseIds.forEach(id => {
+        const prereqs = PREREQUISITE_RULES[id] || [];
+        prereqs.forEach(pId => {
+            if (courseIds.has(pId)) {
+                // Direction: Prereq -> Course
+                graph[pId].push(id);
+                inDegree[id]++;
+            }
+        });
+    });
+
+    // Queue for courses with 0 prerequisites (roots)
+    const queue = [];
+    courseIds.forEach(id => {
+        if (inDegree[id] === 0) queue.push(id);
+    });
+
+    const semesterMap = {};
+    let semester = 1;
+
+    while (queue.length > 0) {
+        const levelSize = queue.length;
+        
+        for (let i = 0; i < levelSize; i++) {
+            const current = queue.shift();
+            semesterMap[current] = semester;
+
+            if (graph[current]) {
+                graph[current].forEach(neighbor => {
+                    inDegree[neighbor]--;
+                    if (inDegree[neighbor] === 0) {
+                        queue.push(neighbor);
+                    }
+                });
+            }
+        }
+        semester++;
+    }
+
+    return semesterMap;
+}
+
+// Layout Calculation
+function applyLayout() {
+    const activeCourses = new Set(cy.nodes().map(n => n.id()));
+    if (activeCourses.size === 0) return;
+
+    const semesterMap = calculateSemesters(activeCourses);
+    
+    // Group courses by semester to assign Y positions
+    const semesters = {};
+    Object.entries(semesterMap).forEach(([id, sem]) => {
+        if (!semesters[sem]) semesters[sem] = [];
+        semesters[sem].push(id);
+    });
+
+    // Basic Grid Params
+    const colWidth = 200;
+    const rowHeight = 120;
+    const startX = 100;
+    const startY = 100;
+
+    cy.batch(() => {
+        activeCourses.forEach(id => {
+            const sem = semesterMap[id] || 1; // Default to 1 if something weird
+            
+            // Find index in semester list for Y position
+            // Sorting by ID for stability, or could use heuristics
+            semesters[sem].sort(); 
+            const idx = semesters[sem].indexOf(id);
+
+            const node = cy.$id(id);
+            node.position({
+                x: startX + (sem - 1) * colWidth,
+                y: startY + idx * rowHeight
+            });
+        });
+
+        // Assign Colors based on Semester
+        activeCourses.forEach(id => {
+            const sem = semesterMap[id] || 1;
+            const color = SEMESTER_COLORS[(sem - 1) % SEMESTER_COLORS.length];
+            cy.$id(id).data('color', color);
+        });
+
+        // Assign Edge Colors (Match Source)
+        cy.edges().forEach(edge => {
+            const sourceId = edge.source().id();
+            const sourceColor = cy.$id(sourceId).data('color');
+            if (sourceColor) {
+                edge.data('color', sourceColor);
+            }
+        });
+    });
+
+    cy.fit(50);
+    return semesterMap;
+}
+
+// Add Course Handler
+addBtn.addEventListener('click', () => {
+    const selectedId = selectEl.value;
+    console.log("Add Course Clicked. Selected:", selectedId);
+    if (!selectedId) return;
+
+    // 1. Calculate full dependency tree for this selection
+    const requiredCourses = getFullPrereqTree(selectedId);
+    console.log("Required Courses found:", Array.from(requiredCourses));
+
+    // 2. Add any missing nodes/edges to Cytoscape
+    let addedCount = 0;
+    cy.batch(() => {
+        // Pass 1: Add all Nodes first
+        requiredCourses.forEach(id => {
+            if (cy.$id(id).length === 0) {
+                // Add Node
+                const info = COURSE_CATALOG[id];
+                const label = id; 
+                cy.add({
+                    group: 'nodes',
+                    data: { 
+                        id: id,
+                        label: label 
+                    }
+                });
+                addedCount++;
+            }
+        });
+
+        // Pass 2: Add all Edges
+        requiredCourses.forEach(id => {
+            const prereqs = PREREQUISITE_RULES[id] || [];
+            prereqs.forEach(pId => {
+                if (requiredCourses.has(pId)) {
+                    // Check if edge exists
+                    const edgeId = `${pId}-${id}`;
+                    if (cy.$id(edgeId).length === 0) {
+                        cy.add({
+                            group: 'edges',
+                            data: {
+                                id: edgeId,
+                                source: pId,
+                                target: id
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    });
+    console.log(`Added ${addedCount} new nodes. Total nodes: ${cy.nodes().length}`);
+
+    // 3. Re-calculate layout for ALL nodes
+    try {
+        const semesterMap = applyLayout(); // Update applyLayout to return the map
+        console.log("Layout applied.");
+        
+        // Add Semester Headers/Backgrounds
+        // We first find the max semester to know how many to draw
+        let maxSem = 0;
+        Object.values(semesterMap).forEach(s => maxSem = Math.max(maxSem, s));
+        
+        // Basic Grid Params (must match applyLayout)
+        const colWidth = 200;
+        const startX = 100;
+        const headerY = 50; // Position above the nodes
+
+        cy.batch(() => {
+            // Remove old headers if any
+            cy.nodes('.semester-header').remove();
+            cy.nodes('.semester-divider').remove(); // If we use nodes for dividers
+
+            for (let i = 1; i <= maxSem; i++) {
+                const xPos = startX + (i - 1) * colWidth;
+                
+                // Add Header Node
+                cy.add({
+                    group: 'nodes',
+                    classes: 'semester-header',
+                    data: { 
+                        id: `sem_header_${i}`, 
+                        label: `Semester ${i}` 
+                    },
+                    position: { x: xPos, y: headerY },
+                    locked: true, // Keep it fixed relative to layout (soft lock, panning still moves whole viewport)
+                    selectable: false,
+                    grabbable: false
+                });
+
+                // Optional: divider line implementation could be complex in Cytoscape
+                // Simpler is to use CSS/background styling or just spacing which we have.
+            }
+        });
+        
+    } catch (e) {
+        console.error("Layout Error:", e);
+    }
+});
+
+// Clear Handler
+clearBtn.addEventListener('click', () => {
+    cy.elements().remove();
+    selectEl.value = "";
+    // addedCourses.clear(); // We track active via cy.nodes() now
+});
+
+// Init
+initDropdown();
