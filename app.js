@@ -10,6 +10,18 @@ const SEMESTER_COLORS = [
     '#C4FAF8'  // Semester 8: Pastel Cyan
 ];
 
+// Darker Stroke Colors for Edges/Borders (Improved Visibility)
+const SEMESTER_STROKE_COLORS = [
+    '#E05A6D', // Darker Red
+    '#F39C12', // Darker Orange
+    '#D4AC0D', // Darker Yellow (Goldenrod)
+    '#2ECC71', // Darker Green
+    '#3498DB', // Darker Blue
+    '#9B59B6', // Darker Purple
+    '#E91E63', // Darker Pink
+    '#1ABC9C'  // Darker Cyan
+];
+
 const cy = cytoscape({
     container: document.getElementById('cy'),
     autoungrabify: true, // User cannot grab/move nodes
@@ -34,12 +46,12 @@ const cy = cytoscape({
         {
             selector: 'edge',
             style: {
-                'width': 3,
+                'width': 4,
                 'line-color': 'data(color)',
                 'target-arrow-color': 'data(color)',
                 'target-arrow-shape': 'triangle',
                 'curve-style': 'bezier',
-                'opacity': 0.8
+                'opacity': 1.0
             }
         },
         {
@@ -81,17 +93,30 @@ const addBtn = document.getElementById('add-btn');
 const clearBtn = document.getElementById('clear-btn');
 
 // Populate Dropdown
-function initDropdown() {
+function updateDropdown() {
+    // Save current selection if possible, though usually we want to reset
+    const currentSelection = selectEl.value;
+    
+    // Clear existing options
+    selectEl.innerHTML = '<option value="" disabled selected>Select a course...</option>';
+    
+    // Get currently active courses
+    const activeIds = new Set(cy.nodes().map(n => n.id()));
+
     const sortedIds = DROPDOWN_OPTIONS.sort();
     sortedIds.forEach(id => {
-        const info = COURSE_CATALOG[id];
-        const name = info ? info.name : id;
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = `${id}: ${name}`;
-        selectEl.appendChild(option);
+        // Only add if not already in graph
+        if (!activeIds.has(id)) {
+            const info = COURSE_CATALOG[id];
+            const name = info ? info.name : id;
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = `${id}: ${name}`;
+            selectEl.appendChild(option);
+        }
     });
 }
+
 
 // Logic to recursively finding prerequisites
 function getFullPrereqTree(courseId, tree = new Set()) {
@@ -176,7 +201,7 @@ function applyLayout() {
 
     // Basic Grid Params
     const colWidth = 200;
-    const rowHeight = 120;
+    const rowHeight = 90;
     const startX = 100;
     const startY = 100;
 
@@ -200,23 +225,25 @@ function applyLayout() {
         activeCourses.forEach(id => {
             const sem = semesterMap[id] || 1;
             const color = SEMESTER_COLORS[(sem - 1) % SEMESTER_COLORS.length];
-            cy.$id(id).data('color', color);
+            const stroke = SEMESTER_STROKE_COLORS[(sem - 1) % SEMESTER_STROKE_COLORS.length];
+            
+            const node = cy.$id(id);
+            node.data('color', color);
+            node.data('strokeColor', stroke);
         });
 
-        // Assign Edge Colors (Match Source)
+        // Assign Edge Colors (Match Source Stroke)
         cy.edges().forEach(edge => {
             const sourceId = edge.source().id();
-            const sourceColor = cy.$id(sourceId).data('color');
-            if (sourceColor) {
-                edge.data('color', sourceColor);
+            const sourceStroke = cy.$id(sourceId).data('strokeColor');
+            if (sourceStroke) {
+                edge.data('color', sourceStroke);
             }
         });
     });
-
     cy.fit(50);
     return semesterMap;
 }
-
 // Add Course Handler
 addBtn.addEventListener('click', () => {
     const selectedId = selectEl.value;
@@ -275,20 +302,39 @@ addBtn.addEventListener('click', () => {
         const semesterMap = applyLayout(); // Update applyLayout to return the map
         console.log("Layout applied.");
         
-        // Add Semester Headers/Backgrounds
-        // We first find the max semester to know how many to draw
+        // Calculate max rows for divider height
+        const semesters = {};
         let maxSem = 0;
-        Object.values(semesterMap).forEach(s => maxSem = Math.max(maxSem, s));
+        let maxRows = 0;
         
+        Object.entries(semesterMap).forEach(([id, sem]) => {
+            if (!semesters[sem]) semesters[sem] = [];
+            semesters[sem].push(id);
+            maxSem = Math.max(maxSem, sem);
+        });
+        
+        Object.values(semesters).forEach(list => {
+            maxRows = Math.max(maxRows, list.length);
+        });
+
         // Basic Grid Params (must match applyLayout)
         const colWidth = 200;
+        const rowHeight = 90;
         const startX = 100;
-        const headerY = 50; // Position above the nodes
+        const startY = 100;
+        
+        // Calculate Divider Geometry
+        // Top of nodes: startY - rowHeight/2 (approx node height is 60, so this gives margin)
+        // Bottom of nodes: startY + (maxRows-1)*rowHeight + rowHeight/2
+        // Let's ensure dividers cover the full vertical space + some padding
+        const totalHeight = Math.max(maxRows * rowHeight, 600); // Minimum height for aesthetics
+        const centerY = startY + ((maxRows - 1) * rowHeight) / 2;
+        const headerY = startY - 100; // Position above the nodes
 
         cy.batch(() => {
-            // Remove old headers if any
+            // Remove old headers and dividers
             cy.nodes('.semester-header').remove();
-            cy.nodes('.semester-divider').remove(); // If we use nodes for dividers
+            cy.nodes('.semester-divider').remove();
 
             for (let i = 1; i <= maxSem; i++) {
                 const xPos = startX + (i - 1) * colWidth;
@@ -302,15 +348,46 @@ addBtn.addEventListener('click', () => {
                         label: `Semester ${i}` 
                     },
                     position: { x: xPos, y: headerY },
-                    locked: true, // Keep it fixed relative to layout (soft lock, panning still moves whole viewport)
+                    locked: true,
                     selectable: false,
                     grabbable: false
                 });
 
-                // Optional: divider line implementation could be complex in Cytoscape
-                // Simpler is to use CSS/background styling or just spacing which we have.
+                // Add Divider (between this semester and next)
+                if (i < maxSem) {
+                    const divX = xPos + (colWidth / 2);
+                    cy.add({
+                        group: 'nodes',
+                        classes: 'semester-divider',
+                        data: {
+                            id: `sem_divider_${i}`
+                        },
+                        position: { x: divX, y: centerY + (headerY - startY)/2 }, // Center vertically somewhat
+                        style: {
+                            'width': 2,
+                            'height': totalHeight + 200, // Extend a bit more
+                            'shape': 'rectangle',
+                            'background-color': '#e0e0e0',
+                            'border-width': 0,
+                            'label': '',
+                            'events': 'no' // Make it passthrough for events if possible, else lock
+                        },
+                        locked: true,
+                        selectable: false,
+                        grabbable: false
+                    });
+                }
             }
         });
+        // Smart Zoom
+        cy.fit(50); // First fit to see everything
+        if (cy.zoom() > 1.2) {
+            cy.zoom(1.2);
+            cy.center();
+        }
+
+        // Update dropdown to remove added courses
+        updateDropdown();
         
     } catch (e) {
         console.error("Layout Error:", e);
@@ -321,8 +398,62 @@ addBtn.addEventListener('click', () => {
 clearBtn.addEventListener('click', () => {
     cy.elements().remove();
     selectEl.value = "";
-    // addedCourses.clear(); // We track active via cy.nodes() now
+    updateDropdown(); // Reset dropdown
 });
 
 // Init
-initDropdown();
+updateDropdown();
+
+// Tooltip Logic
+const tooltip = document.getElementById('tooltip');
+
+cy.on('mouseover', 'node', (event) => {
+    const node = event.target;
+    // Skip if it's a structural node (header/divider)
+    if (node.hasClass('semester-header') || node.hasClass('semester-divider')) return;
+
+    const courseId = node.id();
+    const info = COURSE_CATALOG[courseId];
+
+    if (info) {
+        tooltip.innerHTML = `
+            <h3>${courseId}: ${info.name}</h3>
+            <div class="meta">Credits: ${info.credits}</div>
+            <p>${info.description || 'No description available.'}</p>
+        `;
+        tooltip.style.display = 'block';
+    }
+});
+
+cy.on('mousemove', (event) => {
+    // Move tooltip with mouse if it is visible
+    if (tooltip.style.display === 'block') {
+        const padding = 15; // Offset from mouse
+        const tooltipWidth = tooltip.offsetWidth;
+        const tooltipHeight = tooltip.offsetHeight;
+        const x = event.originalEvent.clientX;
+        const y = event.originalEvent.clientY;
+        const winWidth = window.innerWidth;
+        const winHeight = window.innerHeight;
+
+        let left = x + padding;
+        let top = y + padding;
+
+        // Flip to left if overflowing right
+        if (left + tooltipWidth > winWidth) {
+            left = x - tooltipWidth - padding;
+        }
+
+        // Flip to top if overflowing bottom
+        if (top + tooltipHeight > winHeight) {
+            top = y - tooltipHeight - padding;
+        }
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+    }
+});
+
+cy.on('mouseout', 'node', () => {
+    tooltip.style.display = 'none';
+});

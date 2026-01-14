@@ -71,6 +71,37 @@
             height: 100%;
         }
         /* Semester columns background is handled via Cytoscape or just inferred by layout */
+        #tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            pointer-events: none; /* Let moves pass through */
+            font-size: 14px;
+            -webkit-backdrop-filter: blur(5px);
+            backdrop-filter: blur(5px);
+            color: #333;
+        }
+        #tooltip h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            color: #007aff;
+        }
+        #tooltip p {
+            margin: 0 0 5px 0;
+            line-height: 1.4;
+        }
+        #tooltip .meta {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -86,6 +117,7 @@
         </div>
     </header>
     <div id="cy"></div>
+    <div id="tooltip"></div>
 
     <script src="data.js"></script>
     <script src="app.js"></script>
