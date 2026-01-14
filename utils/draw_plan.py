@@ -169,7 +169,7 @@ def create_prerequisite_diagram(plan: GraduationPlan) -> None:
         text += textwrap.fill(f"Semester: {course.semester}", width=30) + "\n"
         text += textwrap.fill(f"Credits: {course.credits}", width=30) + "\n"
         if course.prerequisites:
-            prereq_text = f"Prerequisites: {", ".join([p.course_id for p in course.prerequisites])}"
+            prereq_text = f"Prerequisites: {', '.join([p.course_id for p in course.prerequisites])}"
             text += textwrap.fill(prereq_text, width=50) + "\n"
         
         text += textwrap.fill(f"Description: {course.description}", width=50)
