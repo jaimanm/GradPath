@@ -108,6 +108,49 @@ const cy = cytoscape({
 
 // State
 let addedCourses = new Set();
+let completedCourses = new Set();
+
+// Logic for Completion (Recursive Two-Way Consistency)
+function toggleCourseCompletion(courseId) {
+    if (completedCourses.has(courseId)) {
+        // Unmarking: Also unmark any COMPLETED courses that depend on this one
+        // (If I haven't done A, I couldn't have done B)
+        unmarkRecursive(courseId);
+    } else {
+        // Marking: Also mark all prerequisites
+        // (If I've done B, I must have done A)
+        markRecursive(courseId);
+    }
+    // Redraw
+    applyLayout();
+}
+
+function markRecursive(id) {
+    const tree = getFullPrereqTree(id);
+    tree.forEach(pid => completedCourses.add(pid));
+}
+
+function unmarkRecursive(id) {
+    if (!completedCourses.has(id)) return;
+    
+    completedCourses.delete(id);
+    
+    // Find dependents that are currently completed and unmark them
+    // Iterate all rules to find who lists 'id' as a prerequisite
+    Object.entries(PREREQUISITE_RULES).forEach(([childId, prereqs]) => {
+        if (prereqs.includes(id)) {
+            if (completedCourses.has(childId)) {
+                unmarkRecursive(childId);
+            }
+        }
+    });
+}
+
+// Click Handler for Completion
+cy.on('tap', 'node.course', (evt) => {
+    const node = evt.target;
+    toggleCourseCompletion(node.id());
+});
 
 // DOM Elements
 const selectEl = document.getElementById('course-select');
@@ -171,32 +214,41 @@ function getFullPrereqTree(courseId, tree = new Set()) {
 function calculateSemesters(courseIds) {
     const graph = {};
     const inDegree = {};
+    const semesterMap = {};
     
     // Initialize
     courseIds.forEach(id => {
         graph[id] = [];
         inDegree[id] = 0;
+        // Prioritize completed courses
+        if (completedCourses.has(id)) {
+            semesterMap[id] = 0;
+        }
     });
 
-    // Build Graph from active courses
+    // Build Graph (Only for non-completed courses)
     courseIds.forEach(id => {
+        if (completedCourses.has(id)) return; // Skip completed
+
         const prereqs = PREREQUISITE_RULES[id] || [];
         prereqs.forEach(pId => {
             if (courseIds.has(pId)) {
-                // Direction: Prereq -> Course
-                graph[pId].push(id);
-                inDegree[id]++;
+                // If prereq is completed, it is resolved.
+                if (!completedCourses.has(pId)) {
+                    // Only count dependency if prereq is NOT completed
+                    graph[pId].push(id);
+                    inDegree[id]++;
+                }
             }
         });
     });
 
-    // Queue for courses with 0 prerequisites (roots)
+    // Queue for courses with 0 unfinished prerequisites
     const queue = [];
     courseIds.forEach(id => {
-        if (inDegree[id] === 0) queue.push(id);
+        if (!completedCourses.has(id) && inDegree[id] === 0) queue.push(id);
     });
 
-    const semesterMap = {};
     let semester = 1;
 
     while (queue.length > 0) {
@@ -240,13 +292,13 @@ function applyLayout() {
     const nodeYIndices = {}; // map id -> vertical index (0, 1, 2...)
 
     // 2. Iterate semesters to sort
-    for (let sem = 1; sem <= maxSem; sem++) {
+    for (let sem = 0; sem <= maxSem; sem++) {
         if (!semesterGroups[sem]) continue;
         
         let courses = semesterGroups[sem];
 
-        if (sem === 1) {
-            // Semester 1: Sort Alphabetically (or by some other logic)
+        if (sem <= 1) {
+            // Semester 0 (Completed) and 1: Sort Alphabetically
             courses.sort();
         } else {
             // Successive Semesters: Sort by average position of prerequisites
@@ -277,84 +329,88 @@ function applyLayout() {
         });
     }
 
-    // 3. Apply Positions
+    // 3. Apply Positions and Visuals
     const colWidth = 200;
     const rowHeight = 90;
-    const startX = 100;
+    const startX = 100; // Anchor for Semester 1 (Completed grows LEFT from here)
     const startY = 100;
+    
+    const COMPLETED_COLS_MAX_ROWS = 6;
+    const numCompCourses = semesterGroups[0] ? semesterGroups[0].length : 0;
+    const numCompCols = numCompCourses > 0 ? Math.ceil(numCompCourses / COMPLETED_COLS_MAX_ROWS) : 0;
+
+    // Calculate vertical dimensions for headers/dividers
+    let maxRows = 0;
+    Object.entries(semesterGroups).forEach(([sem, list]) => {
+        const semInt = parseInt(sem);
+        let height = list.length;
+        if (semInt === 0) height = Math.min(list.length, COMPLETED_COLS_MAX_ROWS);
+        maxRows = Math.max(maxRows, height);
+    });
+    const bottomY = startY + (maxRows * rowHeight) + 20;
+    const topY = startY - 120;
+    const headerY = startY - 100;
 
     cy.batch(() => {
+        // A. Position Nodes
         Object.entries(semesterGroups).forEach(([sem, courses]) => {
-             // Center the semester vertically
-             // Total height of this column = courses.length * rowHeight
-             // We want to align the "center" of this column with a global center?
-             // The Python script aligns center to center.
-             // Simpler approach: Just center them relative to the MAX rows in graph.
-             
-             // However, to keep it simple and consistent with previous UI:
-             // Just start from startY.
-             // Or, better: Center it like the Python script does:
-             // start_y = total_height / 2.
-             
-             // Let's stick to simple top-down for now, just ordered correctly.
-             // The existing logic used startY + idx * rowHeight.
+            const semInt = parseInt(sem);
             
-             courses.forEach((id, idx) => {
-                const node = cy.$id(id);
-                node.position({
-                    x: startX + (sem - 1) * colWidth,
-                    y: startY + idx * rowHeight
+            if (semInt === 0) {
+                 // Completed: Grow Left
+                 courses.forEach((id, idx) => {
+                     const c = Math.floor(idx / COMPLETED_COLS_MAX_ROWS);
+                     const r = idx % COMPLETED_COLS_MAX_ROWS;
+                     // Formula: startX - (offset * colWidth). 
+                     // Col 0 (leftmost) offset = numCompCols. Col N (near Sem1) offset = 1.
+                     const offset = numCompCols - c; 
+                     const xPos = startX - (offset * colWidth);
+                     
+                     cy.$id(id).position({x: xPos, y: startY + r * rowHeight});
                 });
-            });
+            } else {
+                 // Standard Semester (Sem 1 at startX)
+                 const xPos = startX + (semInt - 1) * colWidth;
+                 courses.forEach((id, idx) => {
+                     cy.$id(id).position({x: xPos, y: startY + idx * rowHeight});
+                });
+            }
         });
 
-        // Assign Colors based on Semester
+        // B. Colors
         activeCourses.forEach(id => {
-            const sem = semesterMap[id] || 1;
-            const color = SEMESTER_COLORS[(sem - 1) % SEMESTER_COLORS.length];
-            const stroke = SEMESTER_STROKE_COLORS[(sem - 1) % SEMESTER_STROKE_COLORS.length];
-            
+            const sem = semesterMap[id];
             const node = cy.$id(id);
-            node.data('color', color);
-            node.data('strokeColor', stroke);
+            if (completedCourses.has(id)) {
+                node.data('color', '#e0e0e0');
+                node.data('strokeColor', '#9e9e9e');
+            } else {
+                const safeSem = Math.max(1, sem);
+                const color = SEMESTER_COLORS[(safeSem - 1) % SEMESTER_COLORS.length];
+                const stroke = SEMESTER_STROKE_COLORS[(safeSem - 1) % SEMESTER_STROKE_COLORS.length];
+                node.data('color', color);
+                node.data('strokeColor', stroke);
+            }
         });
 
-        // Assign Edge Colors and Curve Logic
+        // C. Edges
         cy.edges().forEach(edge => {
-            // Skip structural edges
             if (edge.hasClass('divider-edge')) return;
-
-            const sourceId = edge.source().id();
-            const targetId = edge.target().id();
-            
-            // 1. Color Logic (Match Source Stroke)
-            const sourceStroke = cy.$id(sourceId).data('strokeColor');
-            if (sourceStroke) {
-                edge.data('color', sourceStroke);
+            if (completedCourses.has(edge.target().id())) {
+                edge.style('display', 'none');
+                return;
+            } else {
+                edge.style('display', 'element');
             }
 
-            // 2. Curve/Routing Logic (Matching Python Script "arc3, rad=0.3")
-            // Apple curvature to ALL edges based on distance
-            const sourceInfo = cy.$id(sourceId);
-            const targetInfo = cy.$id(targetId);
-            
-            // We need positions. Since we just batch-updated them, we can access them.
-            // Note: In batch, position() might return old values if not careful, 
-            // but since we updated them explicitly in this batch, we can use the values we calculated 
-            // or just read from the node model (which holds the new pos).
-            const p1 = sourceInfo.position();
-            const p2 = targetInfo.position();
+            const sourceStroke = cy.$id(edge.source().id()).data('strokeColor');
+            if (sourceStroke) edge.data('color', sourceStroke);
 
+            // Curve Logic
+            const p1 = edge.source().position();
+            const p2 = edge.target().position();
             if (p1 && p2) {
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                // Python script uses rad=0.3. This roughly corresponds to a control point offset 
-                // proportional to distance.
-                // We use a factor (e.g., 0.15 or 0.2) to simulate this arc.
-                // Positive distance curves "Clockwise" (Down for Left->Right).
-                
+                const distance = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
                 if (distance > 0) {
                      edge.style({
                         'curve-style': 'unbundled-bezier',
@@ -364,38 +420,125 @@ function applyLayout() {
                 }
             }
         });
+
+        // D. Headers and Dividers
+        cy.nodes('.semester-header').remove();
+        cy.elements('.divider-anchor').remove();
+        cy.elements('.divider-edge').remove();
+
+        // D1. Completed Header
+        if (numCompCols > 0) {
+            // Center of Completed Block (growing Left from startX)
+            // Block spans from startX - num*W to startX.
+            // Center = startX - (num+1)*W/2.
+            const compHeaderX = startX - ((numCompCols + 1) * colWidth) / 2;
+            cy.add({
+                group: 'nodes', classes: 'semester-header',
+                data: { id: 'sem_header_completed', label: 'Completed' },
+                position: { x: compHeaderX, y: headerY },
+                locked: true, selectable: false, grabbable: false
+            });
+        }
+
+        // D2. Standard Headers
+        for (let i = 1; i <= maxSem; i++) {
+            const xPos = startX + (i - 1) * colWidth;
+            cy.add({
+                group: 'nodes', classes: 'semester-header',
+                data: { id: `sem_header_${i}`, label: `Semester ${i}` },
+                position: { x: xPos, y: headerY },
+                locked: true, selectable: false, grabbable: false
+            });
+        }
+
+        // D3. Dividers
+        // Divider 0: Between Completed and Sem 1.
+        // Gap is between `startX - 200` (last comp col) and `startX` (Sem 1)?
+        // No, Col centers are 200 apart. 
+        // Last Comp Col Center: `startX - 200`. Sem 1 Center: `startX`.
+        // Midpoint: `startX - 100`. (startX - colWidth/2).
+        
+        // Divider k (Sem k to k+1):
+        // Sem k Center: `startX + (k-1)*200`.
+        // Sem k+1 Center: `startX + k*200`.
+        // Midpoint: `startX + (k-1)*200 + 100` = `startX + (k - 0.5)*200`.
+        
+        // Loop 0 to maxSem-1.
+        for (let i = 0; i < maxSem; i++) {
+            let divX;
+            if (i === 0) {
+                 // Between Completed block and Sem 1
+                 // Always at startX - colWidth/2 (Left edge of Sem 1)
+                 divX = startX - (colWidth / 2);
+            } else {
+                 // Between Sem i and Sem i+1
+                 // i=1 (gap Sem 1-2). divX = startX + 100. (Right edge of Sem 1).
+                 // Formula: startX + (i-1)*colWidth + colWidth/2.
+                 divX = startX + (i - 1) * colWidth + (colWidth / 2);
+            }
+            // Only add Divider 0 if we have completed cols?
+            // "Divider between completed section and Sem 1". Yes.
+            // If numCompCols=0, do we want a divider to the left of Sem 1? 
+            // Maybe not.
+            if (i === 0 && numCompCols === 0) continue; 
+            
+            cy.add({
+                group: 'nodes', classes: 'divider-anchor',
+                data: { id: `div_anc_top_gap_${i}` },
+                position: { x: divX, y: topY },
+                locked: true, grabbable: false, selectable: false
+            });
+            cy.add({
+                group: 'nodes', classes: 'divider-anchor',
+                data: { id: `div_anc_bot_gap_${i}` },
+                position: { x: divX, y: bottomY },
+                locked: true, grabbable: false, selectable: false
+            });
+            cy.add({
+                group: 'edges', classes: 'divider-edge',
+                data: {
+                    id: `sem_divider_gap_${i}`,
+                    source: `div_anc_top_gap_${i}`, target: `div_anc_bot_gap_${i}`
+                }
+            });
+        }
     });
+
     cy.fit(50);
+    if (cy.zoom() > 1.2) {
+        cy.zoom(1.2);
+        cy.center();
+    }
+    
+    updateDropdown();
+    updateEmptyState();
+
     return semesterMap;
 }
 // Add Course Handler
 addBtn.addEventListener('click', () => {
     const selectedId = selectEl.value;
-    console.log("Add Course Clicked. Selected:", selectedId);
     if (!selectedId) return;
 
     // 1. Calculate full dependency tree for this selection
     const requiredCourses = getFullPrereqTree(selectedId);
-    console.log("Required Courses found:", Array.from(requiredCourses));
 
     // 2. Add any missing nodes/edges to Cytoscape
-    let addedCount = 0;
     cy.batch(() => {
         // Pass 1: Add all Nodes first
         requiredCourses.forEach(id => {
             if (cy.$id(id).length === 0) {
-                // Add Node
                 const info = COURSE_CATALOG[id];
                 const label = id; 
                 cy.add({
                     group: 'nodes',
-                    classes: 'course', // Tag as course
+                    classes: 'course',
                     data: { 
                         id: id,
-                        label: label 
+                        label: label,
+                        color: '#eeeeee' // Default color to prevent warnings
                     }
                 });
-                addedCount++;
             }
         });
 
@@ -404,16 +547,16 @@ addBtn.addEventListener('click', () => {
             const prereqs = PREREQUISITE_RULES[id] || [];
             prereqs.forEach(pId => {
                 if (requiredCourses.has(pId)) {
-                    // Check if edge exists
                     const edgeId = `${pId}-${id}`;
                     if (cy.$id(edgeId).length === 0) {
                         cy.add({
                             group: 'edges',
-                            classes: 'course-edge', // Tag as course edge
+                            classes: 'course-edge',
                             data: {
                                 id: edgeId,
                                 source: pId,
-                                target: id
+                                target: id,
+                                color: '#cccccc' // Default color
                             }
                         });
                     }
@@ -421,121 +564,9 @@ addBtn.addEventListener('click', () => {
             });
         });
     });
-    console.log(`Added ${addedCount} new nodes. Total nodes: ${cy.nodes().length}`);
 
     // 3. Re-calculate layout for ALL nodes
-    try {
-        const semesterMap = applyLayout(); // Update applyLayout to return the map
-        console.log("Layout applied.");
-        
-        // Calculate max rows for divider height
-        const semesters = {};
-        let maxSem = 0;
-        let maxRows = 0;
-        
-        Object.entries(semesterMap).forEach(([id, sem]) => {
-            if (!semesters[sem]) semesters[sem] = [];
-            semesters[sem].push(id);
-            maxSem = Math.max(maxSem, sem);
-        });
-        
-        Object.values(semesters).forEach(list => {
-            maxRows = Math.max(maxRows, list.length);
-        });
-
-        // Basic Grid Params (must match applyLayout)
-        const colWidth = 200;
-        const rowHeight = 90;
-        const startX = 100;
-        const startY = 100;
-        
-        // Calculate Divider Geometry
-        // Top of nodes: startY - rowHeight/2 (approx node height is 60, so this gives margin)
-        // Bottom of nodes: startY + (maxRows-1)*rowHeight + rowHeight/2
-        // Let's ensure dividers cover the full vertical space + some padding
-        const totalHeight = Math.max(maxRows * rowHeight, 600); // Minimum height for aesthetics
-        const centerY = startY + ((maxRows - 1) * rowHeight) / 2;
-        const headerY = startY - 100; // Position above the nodes
-
-        cy.batch(() => {
-            // Remove old headers and dividers
-            cy.nodes('.semester-header').remove();
-            cy.nodes('.semester-divider').remove(); // Legacy cleanup
-            cy.elements('.divider-anchor').remove();
-            cy.elements('.divider-edge').remove();
-
-            for (let i = 1; i <= maxSem; i++) {
-                const xPos = startX + (i - 1) * colWidth;
-                
-                // Add Header Node
-                cy.add({
-                    group: 'nodes',
-                    classes: 'semester-header',
-                    data: { 
-                        id: `sem_header_${i}`, 
-                        label: `Semester ${i}` 
-                    },
-                    position: { x: xPos, y: headerY },
-                    locked: true,
-                    selectable: false,
-                    grabbable: false
-                });
-
-                // Add Divider (between this semester and next)
-                if (i < maxSem) {
-                    const divX = xPos + (colWidth / 2);
-                    const topY = headerY - 20;
-                    const bottomY = startY + (maxRows * rowHeight) + 20;
-
-                    // Anchor Top
-                    cy.add({
-                        group: 'nodes',
-                        classes: 'divider-anchor',
-                        data: { id: `div_anc_top_${i}` },
-                        position: { x: divX, y: topY },
-                        locked: true,
-                        grabbable: false,
-                        selectable: false
-                    });
-                    
-                    // Anchor Bottom
-                    cy.add({
-                        group: 'nodes',
-                        classes: 'divider-anchor',
-                        data: { id: `div_anc_bot_${i}` },
-                        position: { x: divX, y: bottomY },
-                        locked: true,
-                        grabbable: false,
-                        selectable: false
-                    });
-                    
-                    // Dotted Edge
-                    cy.add({
-                        group: 'edges',
-                        classes: 'divider-edge',
-                        data: {
-                            id: `sem_divider_${i}`,
-                            source: `div_anc_top_${i}`,
-                            target: `div_anc_bot_${i}`
-                        }
-                    });
-                }
-            }
-        });
-        // Smart Zoom
-        cy.fit(50); // First fit to see everything
-        if (cy.zoom() > 1.2) {
-            cy.zoom(1.2);
-            cy.center();
-        }
-
-        // Update dropdown to remove added courses
-        updateDropdown();
-        updateEmptyState();
-        
-    } catch (e) {
-        console.error("Layout Error:", e);
-    }
+    applyLayout();
 });
 
 // Clear Handler
@@ -562,8 +593,14 @@ cy.on('mouseover', 'node', (event) => {
     const info = COURSE_CATALOG[courseId];
 
     if (info) {
+        const isCompleted = completedCourses.has(courseId);
+        const actionText = isCompleted ? "mark as Incomplete" : "mark as Completed";
+        
         tooltip.innerHTML = `
-            <h3>${courseId}: ${info.name}</h3>
+            <div style="margin-bottom: 10px; font-weight: bold; color: black; font-size: 15px; font-style: italic;">
+                Click to ${actionText}
+            </div>
+            <h3 style="margin-top: 0;">${courseId}: ${info.name}</h3>
             <div class="meta">Credits: ${info.credits}</div>
             <p>${info.description || 'No description available.'}</p>
         `;
