@@ -2,20 +2,13 @@ import json
 import collections
 
 # Hardcoded prerequisites from complete_diagram.py
-course_prerequisites = {
-  "MATH461": ["CMSC250"],
-  "CMSC216": ["CMSC132"],
-  "CMSC330": ["CMSC216", "MATH461"],
-  "CMSC351": ["CMSC216"],
-  "CMSC320": ["MATH140", "STAT400"],
-  "CMSC421": ["CMSC330"],
-  "CMSC422": ["CMSC330", "CMSC351"],
-  "CMSC426": ["CMSC330", "CMSC351", "MATH461"],
-  "CMSC470": ["CMSC320", "CMSC330", "CMSC351", "MATH461"],
-  "CMSC435": ["CMSC426"],
-  "MATH401": ["CMSC330", "CMSC351", "MATH461"],
-  "CMSC460": ["CMSC422"]
-}
+# Load prerequisites from JSON source instead of hardcoding
+try:
+    with open("data/sample-prerequisites.json", "r") as f:
+        course_prerequisites = json.load(f)
+except Exception as e:
+    print(f"Warning: Could not load sample-prerequisites.json: {e}")
+    course_prerequisites = {}
 
 # Fallback basic prerequisites if not in the hardcoded list
 # This is to support the "Build Your Own" flow where users might pick other courses
@@ -52,6 +45,13 @@ def main():
     
     # 2. Hardcoded Prerequisite Rules
     js_content += "const PREREQUISITE_RULES = " + json.dumps(course_prerequisites, indent=2) + ";\n"
+
+    # 3. Dropdown Options (Derived from all involved courses)
+    all_involved_courses = set(course_prerequisites.keys())
+    for prereqs in course_prerequisites.values():
+        all_involved_courses.update(prereqs)
+    
+    js_content += "const DROPDOWN_OPTIONS = " + json.dumps(list(all_involved_courses), indent=2) + ";\n"
 
     with open("data.js", "w") as f:
         f.write(js_content)

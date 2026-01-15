@@ -14,7 +14,7 @@ const SEMESTER_COLORS = [
 const SEMESTER_STROKE_COLORS = [
     '#E05A6D', // Darker Red
     '#F39C12', // Darker Orange
-    '#D4AC0D', // Darker Yellow (Goldenrod)
+    '#D4C400', // Darker Yellow (Distinct from Orange)
     '#2ECC71', // Darker Green
     '#3498DB', // Darker Blue
     '#9B59B6', // Darker Purple
@@ -27,7 +27,7 @@ const cy = cytoscape({
     autoungrabify: true, // User cannot grab/move nodes
     style: [
         {
-            selector: 'node',
+            selector: 'node.course',
             style: {
                 'label': 'data(label)',
                 'text-valign': 'center',
@@ -44,7 +44,7 @@ const cy = cytoscape({
             }
         },
         {
-            selector: 'edge',
+            selector: 'edge.course-edge',
             style: {
                 'width': 4,
                 'line-color': 'data(color)',
@@ -57,6 +57,7 @@ const cy = cytoscape({
         {
             selector: '.semester-header',
             style: {
+                'label': 'data(label)',
                 'background-opacity': 0,
                 'border-width': 0,
                 'font-size': '20px',
@@ -112,6 +113,20 @@ let addedCourses = new Set();
 const selectEl = document.getElementById('course-select');
 const addBtn = document.getElementById('add-btn');
 const clearBtn = document.getElementById('clear-btn');
+const emptyState = document.getElementById('empty-state');
+
+function updateEmptyState() {
+    // Check if there are any ACTUAL courses
+    const hasCourses = cy.nodes('.course').length > 0;
+    
+    if (hasCourses) {
+        emptyState.style.display = 'none';
+        cy.container().style.opacity = 1;
+    } else {
+        emptyState.style.display = 'flex';
+        cy.container().style.opacity = 0; // Hide graph to keep it clean
+    }
+}
 
 // Populate Dropdown
 function updateDropdown() {
@@ -122,7 +137,7 @@ function updateDropdown() {
     selectEl.innerHTML = '<option value="" disabled selected>Select a course...</option>';
     
     // Get currently active courses
-    const activeIds = new Set(cy.nodes().filter(n => !n.hasClass('semester-header') && !n.hasClass('divider-anchor') && !n.hasClass('semester-divider')).map(n => n.id()));
+    const activeIds = new Set(cy.nodes('.course').map(n => n.id()));
 
     const sortedIds = DROPDOWN_OPTIONS.sort();
     sortedIds.forEach(id => {
@@ -208,37 +223,88 @@ function calculateSemesters(courseIds) {
 
 // Layout Calculation
 function applyLayout() {
-    const activeCourses = new Set(cy.nodes().filter(n => !n.hasClass('semester-header') && !n.hasClass('divider-anchor') && !n.hasClass('semester-divider')).map(n => n.id()));
+    const activeCourses = new Set(cy.nodes('.course').map(n => n.id()));
     if (activeCourses.size === 0) return;
 
     const semesterMap = calculateSemesters(activeCourses);
     
-    // Group courses by semester to assign Y positions
-    const semesters = {};
+    // Layout: Minimize Crossings (Barycentric Heuristic)
+    // 1. Group by semester first
+    const semesterGroups = {};
     Object.entries(semesterMap).forEach(([id, sem]) => {
-        if (!semesters[sem]) semesters[sem] = [];
-        semesters[sem].push(id);
+        if (!semesterGroups[sem]) semesterGroups[sem] = [];
+        semesterGroups[sem].push(id);
     });
 
-    // Basic Grid Params
+    const maxSem = Math.max(...Object.values(semesterMap));
+    const nodeYIndices = {}; // map id -> vertical index (0, 1, 2...)
+
+    // 2. Iterate semesters to sort
+    for (let sem = 1; sem <= maxSem; sem++) {
+        if (!semesterGroups[sem]) continue;
+        
+        let courses = semesterGroups[sem];
+
+        if (sem === 1) {
+            // Semester 1: Sort Alphabetically (or by some other logic)
+            courses.sort();
+        } else {
+            // Successive Semesters: Sort by average position of prerequisites
+            courses.sort((a, b) => {
+                const getAvgPrereqY = (courseId) => {
+                    const prereqs = PREREQUISITE_RULES[courseId] || [];
+                    // Filter for prereqs that are currently in the graph
+                    const activePrereqs = prereqs.filter(p => activeCourses.has(p) && nodeYIndices[p] !== undefined);
+                    
+                    if (activePrereqs.length === 0) return 9999; // No prereqs? Push to bottom (inf)
+
+                    const sumY = activePrereqs.reduce((sum, pId) => sum + nodeYIndices[pId], 0);
+                    return sumY / activePrereqs.length;
+                };
+
+                const scoreA = getAvgPrereqY(a);
+                const scoreB = getAvgPrereqY(b);
+                
+                // Stable sort fallback
+                if (Math.abs(scoreA - scoreB) < 0.01) return a.localeCompare(b);
+                return scoreA - scoreB;
+            });
+        }
+
+        // Assign Indices for this semester
+        courses.forEach((id, idx) => {
+            nodeYIndices[id] = idx;
+        });
+    }
+
+    // 3. Apply Positions
     const colWidth = 200;
     const rowHeight = 90;
     const startX = 100;
     const startY = 100;
 
     cy.batch(() => {
-        activeCourses.forEach(id => {
-            const sem = semesterMap[id] || 1; // Default to 1 if something weird
+        Object.entries(semesterGroups).forEach(([sem, courses]) => {
+             // Center the semester vertically
+             // Total height of this column = courses.length * rowHeight
+             // We want to align the "center" of this column with a global center?
+             // The Python script aligns center to center.
+             // Simpler approach: Just center them relative to the MAX rows in graph.
+             
+             // However, to keep it simple and consistent with previous UI:
+             // Just start from startY.
+             // Or, better: Center it like the Python script does:
+             // start_y = total_height / 2.
+             
+             // Let's stick to simple top-down for now, just ordered correctly.
+             // The existing logic used startY + idx * rowHeight.
             
-            // Find index in semester list for Y position
-            // Sorting by ID for stability, or could use heuristics
-            semesters[sem].sort(); 
-            const idx = semesters[sem].indexOf(id);
-
-            const node = cy.$id(id);
-            node.position({
-                x: startX + (sem - 1) * colWidth,
-                y: startY + idx * rowHeight
+             courses.forEach((id, idx) => {
+                const node = cy.$id(id);
+                node.position({
+                    x: startX + (sem - 1) * colWidth,
+                    y: startY + idx * rowHeight
+                });
             });
         });
 
@@ -253,12 +319,49 @@ function applyLayout() {
             node.data('strokeColor', stroke);
         });
 
-        // Assign Edge Colors (Match Source Stroke)
+        // Assign Edge Colors and Curve Logic
         cy.edges().forEach(edge => {
+            // Skip structural edges
+            if (edge.hasClass('divider-edge')) return;
+
             const sourceId = edge.source().id();
+            const targetId = edge.target().id();
+            
+            // 1. Color Logic (Match Source Stroke)
             const sourceStroke = cy.$id(sourceId).data('strokeColor');
             if (sourceStroke) {
                 edge.data('color', sourceStroke);
+            }
+
+            // 2. Curve/Routing Logic (Matching Python Script "arc3, rad=0.3")
+            // Apple curvature to ALL edges based on distance
+            const sourceInfo = cy.$id(sourceId);
+            const targetInfo = cy.$id(targetId);
+            
+            // We need positions. Since we just batch-updated them, we can access them.
+            // Note: In batch, position() might return old values if not careful, 
+            // but since we updated them explicitly in this batch, we can use the values we calculated 
+            // or just read from the node model (which holds the new pos).
+            const p1 = sourceInfo.position();
+            const p2 = targetInfo.position();
+
+            if (p1 && p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Python script uses rad=0.3. This roughly corresponds to a control point offset 
+                // proportional to distance.
+                // We use a factor (e.g., 0.15 or 0.2) to simulate this arc.
+                // Positive distance curves "Clockwise" (Down for Left->Right).
+                
+                if (distance > 0) {
+                     edge.style({
+                        'curve-style': 'unbundled-bezier',
+                        'control-point-distances': [distance * 0.15], 
+                        'control-point-weights': [0.5]
+                    });
+                }
             }
         });
     });
@@ -286,6 +389,7 @@ addBtn.addEventListener('click', () => {
                 const label = id; 
                 cy.add({
                     group: 'nodes',
+                    classes: 'course', // Tag as course
                     data: { 
                         id: id,
                         label: label 
@@ -305,6 +409,7 @@ addBtn.addEventListener('click', () => {
                     if (cy.$id(edgeId).length === 0) {
                         cy.add({
                             group: 'edges',
+                            classes: 'course-edge', // Tag as course edge
                             data: {
                                 id: edgeId,
                                 source: pId,
@@ -426,6 +531,7 @@ addBtn.addEventListener('click', () => {
 
         // Update dropdown to remove added courses
         updateDropdown();
+        updateEmptyState();
         
     } catch (e) {
         console.error("Layout Error:", e);
@@ -437,10 +543,12 @@ clearBtn.addEventListener('click', () => {
     cy.elements().remove();
     selectEl.value = "";
     updateDropdown(); // Reset dropdown
+    updateEmptyState();
 });
 
 // Init
 updateDropdown();
+updateEmptyState();
 
 // Tooltip Logic
 const tooltip = document.getElementById('tooltip');
