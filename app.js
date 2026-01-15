@@ -122,7 +122,7 @@ function updateDropdown() {
     selectEl.innerHTML = '<option value="" disabled selected>Select a course...</option>';
     
     // Get currently active courses
-    const activeIds = new Set(cy.nodes().map(n => n.id()));
+    const activeIds = new Set(cy.nodes().filter(n => !n.hasClass('semester-header') && !n.hasClass('divider-anchor') && !n.hasClass('semester-divider')).map(n => n.id()));
 
     const sortedIds = DROPDOWN_OPTIONS.sort();
     sortedIds.forEach(id => {
@@ -208,7 +208,7 @@ function calculateSemesters(courseIds) {
 
 // Layout Calculation
 function applyLayout() {
-    const activeCourses = new Set(cy.nodes().map(n => n.id()));
+    const activeCourses = new Set(cy.nodes().filter(n => !n.hasClass('semester-header') && !n.hasClass('divider-anchor') && !n.hasClass('semester-divider')).map(n => n.id()));
     if (activeCourses.size === 0) return;
 
     const semesterMap = calculateSemesters(activeCourses);
