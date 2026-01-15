@@ -77,6 +77,27 @@ const cy = cytoscape({
                 'transition-property': 'background-color, line-color, target-arrow-color',
                 'transition-duration': '0.5s'
             }
+        },
+        {
+            selector: '.divider-anchor',
+            style: {
+                'width': 1,
+                'height': 1,
+                'opacity': 0,
+                'events': 'no'
+            }
+        },
+        {
+            selector: '.divider-edge',
+            style: {
+                'width': 2,
+                'line-style': 'dashed',
+                'line-color': '#d1d5db',
+                'line-dash-pattern': [6, 4],
+                'events': 'no',
+                'curve-style': 'straight',
+                'target-arrow-shape': 'none'
+            }
         }
     ],
     layout: {
@@ -334,7 +355,9 @@ addBtn.addEventListener('click', () => {
         cy.batch(() => {
             // Remove old headers and dividers
             cy.nodes('.semester-header').remove();
-            cy.nodes('.semester-divider').remove();
+            cy.nodes('.semester-divider').remove(); // Legacy cleanup
+            cy.elements('.divider-anchor').remove();
+            cy.elements('.divider-edge').remove();
 
             for (let i = 1; i <= maxSem; i++) {
                 const xPos = startX + (i - 1) * colWidth;
@@ -356,25 +379,40 @@ addBtn.addEventListener('click', () => {
                 // Add Divider (between this semester and next)
                 if (i < maxSem) {
                     const divX = xPos + (colWidth / 2);
+                    const topY = headerY - 20;
+                    const bottomY = startY + (maxRows * rowHeight) + 20;
+
+                    // Anchor Top
                     cy.add({
                         group: 'nodes',
-                        classes: 'semester-divider',
-                        data: {
-                            id: `sem_divider_${i}`
-                        },
-                        position: { x: divX, y: centerY + (headerY - startY)/2 }, // Center vertically somewhat
-                        style: {
-                            'width': 2,
-                            'height': totalHeight + 200, // Extend a bit more
-                            'shape': 'rectangle',
-                            'background-color': '#e0e0e0',
-                            'border-width': 0,
-                            'label': '',
-                            'events': 'no' // Make it passthrough for events if possible, else lock
-                        },
+                        classes: 'divider-anchor',
+                        data: { id: `div_anc_top_${i}` },
+                        position: { x: divX, y: topY },
                         locked: true,
-                        selectable: false,
-                        grabbable: false
+                        grabbable: false,
+                        selectable: false
+                    });
+                    
+                    // Anchor Bottom
+                    cy.add({
+                        group: 'nodes',
+                        classes: 'divider-anchor',
+                        data: { id: `div_anc_bot_${i}` },
+                        position: { x: divX, y: bottomY },
+                        locked: true,
+                        grabbable: false,
+                        selectable: false
+                    });
+                    
+                    // Dotted Edge
+                    cy.add({
+                        group: 'edges',
+                        classes: 'divider-edge',
+                        data: {
+                            id: `sem_divider_${i}`,
+                            source: `div_anc_top_${i}`,
+                            target: `div_anc_bot_${i}`
+                        }
                     });
                 }
             }
